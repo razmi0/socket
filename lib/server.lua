@@ -16,18 +16,27 @@ local Raz = {
         local port = base.port or self._port
 
         self._server = assert(socket.bind(host, port), "Failed to bind server!")
-        print("Server running on http://" .. host .. ":" .. port)
+        print("listening on http://" .. host .. ":" .. port)
 
         while true do
             local client = self._server:accept()
-            client:settimeout(1)
+            -- client:settimeout(0)
 
             -- Set the client socket in the request object | Request:_build() is called in the start() method
             self._request:setClient(client):_build()
             -- Set the client socket in the response object | Response:_build() is called in the send() method
             self._response:setClient(client)
 
-            callback(self._request, self._response)
+
+            -- Print some debug info
+            print("<--", self._request:getMethod(), self._request:getPath())
+            -- User callback --
+            callback({
+                req = self._request,
+                res = self._response,
+            })
+            -- Print some debug info
+            print("-->", self._response:getStatus(), self._response:getHeader("Content-Type"))
 
             client:close()
         end

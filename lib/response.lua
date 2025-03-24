@@ -17,6 +17,18 @@ local Response = {
     },
     _body = "",
 
+    getHeader = function(self, key)
+        return self._headers[key]
+    end,
+
+    getStatus = function(self)
+        return self._status
+    end,
+
+    getStatusMessage = function(self)
+        return self._statusMessage
+    end,
+
     -- Public methods
     setClient = function(self, client)
         self.__client = client
