@@ -9,6 +9,7 @@ local WATCH_DIRS = {                   -- Directories to watch
     "./lib"
 }
 local RELOADS = 0
+local server_output_co = nil
 
 -- Store last modification times
 local last_mod_times = {}
@@ -68,7 +69,6 @@ local function start_server()
     local success, err = pcall(function()
         stop_previous_process()
 
-        -- Modified command to redirect output
         local cmd
         if package.config:sub(1, 1) == "/" then
             -- For Unix-like systems
@@ -78,10 +78,9 @@ local function start_server()
             cmd = "start /B " .. SERVER_COMMAND .. " 2>&1 && echo %ERRORLEVEL%"
         end
 
-        -- Open the process with read mode
         local handle = io.popen(cmd, "r")
         if not handle then
-            print(colorize("red", "Failed to start server: " .. SERVER_COMMAND))
+            print("Failed to start server:", SERVER_COMMAND)
             return
         end
 
@@ -89,44 +88,56 @@ local function start_server()
         local pid = handle:read("*l")
         prev_pid = pid
 
-        -- Create a separate coroutine to read the server output
-        local co = coroutine.create(function()
+        -- Kill previous coroutine if it exists
+        if server_output_co then
+            coroutine.close(server_output_co)
+        end
+
+        -- Create new coroutine for reading server output
+        server_output_co = coroutine.create(function()
             while true do
                 local line = handle:read("*l")
                 if not line then break end
-                print(colorize("green", "[Server] ") .. line)
+                print(colorize("bright_blue", "[Server] ") .. line)
+                coroutine.yield()
             end
             handle:close()
         end)
-        coroutine.resume(co)
+
+        -- Resume the coroutine to start it
+        coroutine.resume(server_output_co)
     end)
 
     if not success then
-        print(colorize("red", "Error restarting server: " .. err))
+        print("Error restarting server:", err)
         socket.sleep(1)
     end
 end
 
+
 -- Initial scan
 last_mod_times = scan_directories()
 
--- Print watched directories
-print(colorize("cyan", "Watching directories: " .. table.concat(WATCH_DIRS, " ")))
+print(colorize("cyan", "Now watching.."))
 
 start_server() -- Start the server initially
+
 
 while true do
     local current_mod_times = scan_directories()
 
-    -- Check for modified files
     for file, mod_time in pairs(current_mod_times) do
+        if server_output_co and coroutine.status(server_output_co) ~= "dead" then
+            coroutine.resume(server_output_co)
+        end
         if not last_mod_times[file] or last_mod_times[file] ~= mod_time then
+            start_server()
             RELOADS = RELOADS + 1
             print(
                 colorize("grey", string.format("File modified: %-5s", file:gsub("//", "/"))) ..
                 colorize("yellow", " x" .. RELOADS)
             )
-            start_server()
+
             last_mod_times = current_mod_times
             break
         end
