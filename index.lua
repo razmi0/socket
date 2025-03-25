@@ -1,16 +1,24 @@
 local App = require("lib/server")
 
-local run = function(c)
-    local method = c.req.method
-    local path = c.req.path
-    c.header("X-Powered-By", "Raz")
-    c.status(202)
-    c.body("{\"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\"}")
-    c.res:send()
-end
+local data = {
+    message = "Hello, World!",
+    some_object = {
+        foo = "bar"
+    },
+    some_array = {"foo", "bar", "baz"}
+}
 
-App:get("/", run)
-App:post("/", run)
+App:get("/html", function(c)
+    return c.html("<h1>Hello, World!</h1>")
+end)
+
+App:get("/json", function(c)
+    return c.json(data)
+end)
+
+App:post("/", function(c)
+    return c.json(data)
+end)
 
 App:start({
     port = 8080

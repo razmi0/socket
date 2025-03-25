@@ -1,3 +1,13 @@
+local socket = require("socket")
+local Request = require("lib/request")
+local Response = require("lib/response")
+local inspector = require("inspect")
+local cjson = require "cjson"
+
+local inspect = function(msg, obj)
+    print(msg, inspector(obj))
+end
+
 ---@class App
 ---@field _host string The host address to bind the server to
 ---@field _port number The port number to bind the server to
@@ -8,22 +18,15 @@
 ---@field start fun(self: App, base: table): nil Start the HTTP server and begin listening for connections
 ---@field get fun(self: App, path: string, callback: function): nil Register a GET route handler
 ---@field post fun(self: App, path: string, callback: function): nil Register a POST route handler
-local socket = require("socket")
-local Request = require("lib/request")
-local Response = require("lib/response")
-local inspector = require("inspect")
-
-local inspect = function(msg, obj)
-    print(msg, inspector(obj))
-end
-
 local App = {
+    __client = nil,
     -- Protected properties
     _host = "localhost",
     _port = 0,
     _server = nil,
     _request = Request,
     _response = Response,
+
     _routes = {
         GET = {},
         POST = {},
@@ -33,6 +36,84 @@ local App = {
             return self._routes[self._request.method][self._request.path]
         end
     },
+
+    _createContext = function(self)
+        return {
+            req = self._request,
+            res = self._response,
+            -- Add a header to the response
+            -- @param key string The header key
+            -- @param value string The header value
+            header = function(key, value)
+                self._response:addHeader(key, value)
+                return self._response
+            end,
+            -- Set the body of the response
+            -- @param body string The body of the response
+            -- @param status number|nil The status code of the response
+            -- @param headers table|nil The headers of the response
+            body = function(body, status, headers)
+                self._response:setBody(body)
+                if status then
+                    self._response:setStatus(status)
+                end
+                if headers then
+                    for key, value in pairs(headers) do
+                        self._response:addHeader(key, value)
+                    end
+                end
+                return self._response
+            end,
+
+            text = function(text)
+                self._response:setStatus(200)
+                self._response:setBody(text)
+                self._response:addHeader("Content-Type", "text/plain")
+                return self._response
+            end,
+
+            json = function(table)
+                self._response:setStatus(200)
+                self._response:setBody(cjson.encode(table))
+                self._response:addHeader("Content-Type", "application/json")
+                return self._response
+            end,
+
+            html = function(html)
+                self._response:setStatus(200)
+                self._response:setBody(html)
+                self._response:addHeader("Content-Type", "text/html")
+                return self._response
+            end,
+
+            -- Set the status code of the response
+            -- @param status number The status code of the response
+            status = function(status)
+                self._response:setStatus(status)
+                return self._response
+            end,
+
+            notFound = function()
+                self._response:setStatus(404)
+                self._response:setBody("Not Found")
+                self._response:addHeader("Content-Type", "text/plain")
+                return self._response
+            end,
+
+            -- Store key-value pairs in the context for use in request handlers
+            -- @param key string The key to set
+            -- @param value string The value to set
+            kvSpace = {},
+            set = function(key, value)
+                self.kvSpace[key] = value
+            end,
+            -- Get a key-value pair from the context
+            get = function(key)
+                return self.kvSpace[key]
+            end
+
+        }
+    end,
 
     -- Public methods
     ---Start the HTTP server and begin listening for connections
@@ -51,47 +132,27 @@ local App = {
             client:settimeout(0.5)
 
             -- bad dependency injection
+            self.__client = client
             self._request:_build(client)
             self._response:_bind(client)
+
+            -- Create a context object for the route handler
+            local context = self:_createContext()
 
             -- Find route => User callback() --
             local route = self._routes.find(self)
 
-            -- Create a context object for the route handler
+            if route then
+                local viable = route(context)
 
-            local context = {
-                req = self._request,
-                res = self._response,
-                -- Add a header to the response
-                -- @param key string The header key
-                -- @param value string The header value
-                header = function(key, value)
-                    return self._response:addHeader(key, value)
-                end,
-                -- Set the body of the response
-                -- @param body string The body of the response
-                -- @param status number|nil The status code of the response
-                -- @param headers table|nil The headers of the response
-                body = function(body, status, headers)
-                    self._response:setBody(body)
-                    if status then
-                        self._response:setStatus(status)
-                    end
-                    if headers then
-                        for key, value in pairs(headers) do
-                            self._response:addHeader(key, value)
-                        end
-                    end
-                end,
-                -- Set the status code of the response
-                -- @param status number The status code of the response
-                status = function(status)
-                    self._response:setStatus(status)
+                -- Run the route handler
+                if viable then
+                    context.res:send()
                 end
-            }
-
-            -- Run the route handler
-            local void = route(context)
+            else
+                context:notFound()
+                context.res:send()
+            end
 
             client:close()
 
