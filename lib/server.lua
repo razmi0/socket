@@ -181,7 +181,7 @@ local App = {
     -- Extract parameters from a path
     -- @param path string The path to extract parameters from
     -- @return table The parameters extracted from the path
-    extract_parameters = function(self, path)
+    _build_url_trie = function(self, path)
         local trie = {}
         local parts = {}
 
@@ -224,7 +224,7 @@ local App = {
     get = function(self, path, callback)
         self._routes.GET[path] = callback
         if self:has_parameter(path) then
-            local trie = self:extract_parameters(path)
+            local trie = self:_build_url_trie(path)
             inspect("trie", trie)
         end
     end,
