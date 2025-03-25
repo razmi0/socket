@@ -23,7 +23,9 @@ App:get("/json", function(c)
 end)
 
 App:get("/json/:id/:name/new", function(c)
-    return c.json(payload)
+    return c.json({
+        params = c.req.param()
+    })
 end)
 
 App:start({
