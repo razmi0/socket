@@ -1,3 +1,15 @@
+---@class Request
+---@field _headers table<string, string> The headers of the request
+---@field method string The method of the request
+---@field path string The path of the request
+---@field protocol string The protocol of the request
+---@field body string The body of the request
+---@field hasBody boolean Whether the request has a body
+---@field bodyType string The type of the body
+---@field header fun(key: string|nil): table|string|nil Get a header value or all headers
+---@field parseBody fun(type: string): nil Parse the request body according to the specified content type
+---@field _build fun(client: table): boolean Build and parse the HTTP request from a client socket
+---@field _bind fun(client: table): Request Bind the request to a client socket
 local Request = {
     -- Private properties
     _headers = {},
@@ -8,6 +20,9 @@ local Request = {
     hasBody = false,
     bodyType = nil,
 
+    ---Get a header value or all headers
+    ---@param key string|nil The header key to retrieve, or nil to get all headers
+    ---@return table|string|nil The header value, all headers, or nil if not found
     header = function(self, key)
         if not key then
             return self._headers
@@ -15,10 +30,13 @@ local Request = {
         return self._headers[key]
     end,
 
+    ---Parse the request body according to the specified content type
+    ---@param type string The expected content type to parse as
+    ---@return nil
     parseBody = function(self, type)
         local bodyType = {
             expected = self._headers["Content-Type"],
-            asked = type,
+            asked = type
         }
 
         if bodyType.expected ~= bodyType.asked then
@@ -26,11 +44,14 @@ local Request = {
         end
     end,
 
-    -- Protected methods
+    ---Build and parse the HTTP request from a client socket
+    ---@private
+    ---@param client table The socket client to read the request from
+    ---@return boolean success True if the request was successfully parsed
     _build = function(self, client)
         if not client then
             error("No client found")
-            return
+            return false
         end
 
         function YieldLine()
@@ -59,7 +80,9 @@ local Request = {
         -- parse the headers
         while true do
             line = YieldLine()
-            if not line or line == "" then break end
+            if not line or line == "" then
+                break
+            end
             local key, value = YieldHeader(line)
             self._headers[key] = value
         end
@@ -78,7 +101,7 @@ local Request = {
                 end
             end
         end
-    end,
+    end
 
 }
 
