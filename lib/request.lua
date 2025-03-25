@@ -13,6 +13,9 @@
 local Request = {
     -- Private properties
     _headers = {},
+    _query = {},
+    _params = {},
+
     method = nil,
     path = nil,
     protocol = nil,
@@ -28,6 +31,24 @@ local Request = {
             return self._headers
         end
         return self._headers[key]
+    end,
+
+    -- Get a query parameter value or all query parameters
+    -- e.g /path?foo=bar&baz=qux
+    query = function(self, key)
+        if not key then
+            return self._query
+        end
+        return self._query[key]
+    end,
+
+    -- Get a path parameter value or all path parameters
+    -- e.g /path/:foo/:bar/:baz
+    param = function(self, key)
+        if not key then
+            return self._params
+        end
+        return self._params[key]
     end,
 
     ---Parse the request body according to the specified content type
@@ -69,13 +90,27 @@ local Request = {
             end
         end
 
+        function ExtractPathParts(line)
+            local method, url, protocol = line:match("(%S+)%s+(%S+)%s+(%S+)")
+            local path, query = url:match("([^?]+)%??(.*)")
+            local queryTable = {}
+            for key, value in query:gmatch("([^=]+)=([^&]+)&?") do
+                queryTable[key] = value
+            end
+            return method, path, protocol, queryTable
+        end
+
         -- parse the first line of the request
         local line = YieldLine()
         if not line then
             return false -- Return early if we couldn't read the first line
         end
 
-        self.method, self.path, self.protocol = line:match("(%S+)%s+(%S+)%s+(%S+)")
+        local method, path, protocol, query = ExtractPathParts(line)
+        self.method = method
+        self.path = path
+        self.protocol = protocol
+        self._query = query
 
         -- parse the headers
         while true do
