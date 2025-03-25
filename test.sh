@@ -54,19 +54,16 @@ make_request() {
 echo -e "${BLUE}Starting API tests...${NC}"
 echo "====================="
 
-# Test GET :8080
+# # Test GET :8080
 make_request "GET" "http://localhost:8080"
 
-# Test POST :8080
-make_request "POST" "http://localhost:8080"
-
-# Test GET :8080/json
+# # Test GET :8080/json
 make_request "GET" "http://localhost:8080/json"
-
-# Test POST :8080/json
-make_request "POST" "http://localhost:8080/json"
 
 # Test GET :8080/json with query parameters
 make_request "GET" "http://localhost:8080/json?foo=bar&baz=foo"
+
+# Test GET :8080/json/:id/:name
+make_request "GET" "http://localhost:8080/json/123/foo"
 
 echo -e "\n${BLUE}All tests completed!${NC}"

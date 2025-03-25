@@ -13,8 +13,8 @@ App:get("/", function(c)
 end)
 
 App:get("/json", function(c)
-    local query = c.req.query()
-    if query then
+    local query = c.req:query()
+    if next(query) then
         return c.json({
             query = query
         })
@@ -22,9 +22,9 @@ App:get("/json", function(c)
     return c.json(payload)
 end)
 
-App:get("/json/:id/:name/new", function(c)
+App:get("/json/:id/:name", function(c)
     return c.json({
-        params = c.req.param()
+        params = c.req:param()
     })
 end)
 
