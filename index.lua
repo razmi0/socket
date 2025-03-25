@@ -1,27 +1,29 @@
 local App = require("lib/server")
 local inspect = require("lib/utils")
 
-local data = {
-    message = "Hello, World!",
+local payload = {
     some_object = {
         foo = "bar"
     },
     some_array = {"foo", "bar", "baz"}
 }
 
-App:get("/html", function(c)
-    return c.html("<h1>Hello, World!</h1>")
+App:get("/", function(c)
+    return c.html("<h1>Home page</h1>")
 end)
 
 App:get("/json", function(c)
-    local foo = c.req:query("foo") or "nothing"
-    return c.json({
-        message = "You're querying " .. foo
-    })
+    local query = c.req.query()
+    if query then
+        return c.json({
+            query = query
+        })
+    end
+    return c.json(payload)
 end)
 
-App:post("/", function(c)
-    return c.json(data)
+App:get("/json/:id/:name/new", function(c)
+    return c.json(payload)
 end)
 
 App:start({

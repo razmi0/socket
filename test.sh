@@ -69,10 +69,4 @@ make_request "POST" "http://localhost:8080/json"
 # Test GET :8080/json with query parameters
 make_request "GET" "http://localhost:8080/json?foo=bar&baz=foo"
 
-# Test GET :8080/html
-make_request "GET" "http://localhost:8080/html"
-
-# Test POST :8080/html
-make_request "POST" "http://localhost:8080/html"
-
 echo -e "\n${BLUE}All tests completed!${NC}"
