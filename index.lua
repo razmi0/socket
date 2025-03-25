@@ -1,4 +1,5 @@
 local App = require("lib/server")
+local inspect = require("lib/utils")
 
 local data = {
     message = "Hello, World!",
@@ -13,7 +14,10 @@ App:get("/html", function(c)
 end)
 
 App:get("/json", function(c)
-    return c.json(data)
+    local foo = c.req:query("foo") or "nothing"
+    return c.json({
+        message = "You're querying " .. foo
+    })
 end)
 
 App:post("/", function(c)
