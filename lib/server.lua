@@ -29,22 +29,100 @@ local App = {
     _response = Response,
 
     _routes = {
-        GET = {},
-        POST = {},
-        PUT = {},
-        DELETE = {},
-        PATCH = {},
-        OPTIONS = {},
-        HEAD = {},
+        GET = {
+            -- for TrieRouter
+            tries = {},
+            -- for classic path indexing
+            indexed = {}
+        },
+        POST = {
+            tries = {},
+            indexed = {}
+        },
+        PUT = {
+            tries = {},
+            indexed = {}
+        },
+        DELETE = {
+            tries = {},
+            indexed = {}
+        },
+        PATCH = {
+            tries = {},
+            indexed = {}
+        },
+        OPTIONS = {
+            tries = {},
+            indexed = {}
+        },
+        HEAD = {
+            tries = {},
+            indexed = {}
+        },
+
+        findLinear = function(self)
+            -- the diference comparison in lua : "nil" ~= nil
+            local indexed = self._routes[self._request.method].indexed[self._request.path]
+            if indexed then
+                return indexed
+            end
+        end,
+
+        findTries = function(self)
+            -- try to find a route in the TrieRouter
+            local parts = {}
+            local found = false
+
+            for part in self._request.path:gmatch("[^/]+") do
+                table.insert(parts, part)
+            end
+
+            for _, trie in ipairs(self._routes[self._request.method].tries) do
+                local current = trie
+                local temp_params = {}
+
+                for i = 1, #parts do
+                    local part = parts[i]
+                    if current.is_param then
+                        temp_params[current.value] = part
+                    else
+                        if part ~= current.value then
+                            break
+                        end
+                    end
+
+                    if current.done then
+                        self._request._params = temp_params
+                        return trie[1].callback
+                    else
+                        current = current.next
+                    end
+
+                end
+
+            end
+        end,
+
         ---Find a route handler based on the current request method and path
         ---@return function|nil The route handler function if found, nil otherwise
         find = function(self)
-            return self._routes[self._request.method][self._request.path]
+            local indexed = self._routes.findLinear(self)
+            if indexed then
+                return indexed
+            end
+
+            local in_trie = self._routes.findTries(self)
+            inspect("in_trie", in_trie)
+            if in_trie then
+                return in_trie
+            end
+
+            return nil
         end
+
     },
 
     -- TODO: end parsing feat
-    -- TODO: query params
     -- TODO: path params
 
     -- Context object for request handlers
@@ -237,13 +315,17 @@ local App = {
         if not self:has_parameter(path) then
             -- more like a classic path indexing route
             -- complexity: O(1)
-            self._routes.GET[path] = callback
+            self._routes.GET.indexed[path] = callback
         else
             -- more like a TrieRouter (with params)
             -- complexity: O(n)
-
             local trie = self:_build_url_trie(path)
+            table.insert(trie, {
+                callback = callback
+            })
+            table.insert(self._routes.GET.tries, trie)
         end
+
     end,
 
     ---Register a POST route handler
