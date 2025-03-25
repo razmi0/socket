@@ -13,7 +13,7 @@
 local Request = {
     -- Private properties
     _headers = {},
-    _query = {},
+    _queries = {},
     _params = {},
 
     method = nil,
@@ -37,9 +37,9 @@ local Request = {
     -- e.g /path?foo=bar&baz=qux
     query = function(self, key)
         if not key then
-            return self._query
+            return self._queries
         end
-        return self._query[key]
+        return self._queries[key]
     end,
 
     -- Get a path parameter value or all path parameters
@@ -110,7 +110,7 @@ local Request = {
         self.method = method
         self.path = path
         self.protocol = protocol
-        self._query = query
+        self._queries = query
 
         -- parse the headers
         while true do
