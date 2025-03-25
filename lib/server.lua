@@ -1,17 +1,30 @@
 local socket = require("socket")
 local Request = require("lib/request")
 local Response = require("lib/response")
+local inspector = require("inspect")
 
-local Raz = {
+local inspect = function(msg, obj)
+    print(msg, inspector(obj))
+end
+
+local App = {
     -- Protected properties
     _host = "localhost",
-    _port = 8080,
+    _port = 0,
     _server = nil,
     _request = Request,
     _response = Response,
+    _routes = {
+        GET = {},
+        POST = {},
+        find = function(self)
+            return self._routes[self._request.method][self._request.path]
+        end
+    },
+
 
     -- Public methods
-    start = function(self, callback, base)
+    start = function(self, base)
         local host = base.host or self._host
         local port = base.port or self._port
 
@@ -20,35 +33,33 @@ local Raz = {
 
         while true do
             local client = self._server:accept()
-            -- client:settimeout(0)
+            client:settimeout(0.5)
 
-            -- Set the client socket in the request object | Request:_build() is called in the start() method
-            self._request:setClient(client):_build()
-            -- Set the client socket in the response object | Response:_build() is called in the send() method
+            -- bad dependency injection
+            self._request:_build(client)
             self._response:setClient(client)
 
-
-            -- Print some debug info
-            print("<--", self._request:getMethod(), self._request:getPath())
-            -- User callback --
-            callback({
-                req = self._request,
-                res = self._response,
-            })
-            -- Print some debug info
-            print("-->", self._response:getStatus(), self._response:getHeader("Content-Type"))
+            -- Find route => User callback() --
+            local route = self._routes.find(self)
+            route({ req = self._request, res = self._response })
 
             client:close()
+
+            -- Print some debug info
+            print("<--", self._request.method, self._request.path)
+            print("-->", self._response.status, self._response:header("Content-Type"))
         end
     end,
+
+    get = function(self, path, callback)
+        self._routes.GET[path] = callback
+    end,
+
+    post = function(self, path, callback)
+        self._routes.POST[path] = callback
+    end,
+
+
 }
 
-return Raz
-
-
--- Build a simple HTTP response
--- local response = "HTTP/1.1 200 OK\r\n"
---     .. "Content-Type: text/html\r\n"
---     .. "Content-Length: 13\r\n"
---     .. "\r\n"
---     .. "Hello, world!"
+return App
