@@ -32,7 +32,7 @@ local App = {
         GET = {
             -- for TrieRouter
             tries = {},
-            -- for classic path indexing
+            -- for LinearRouter
             indexed = {}
         },
         POST = {
@@ -71,7 +71,6 @@ local App = {
         findTries = function(self)
             -- try to find a route in the TrieRouter
             local parts = {}
-            local found = false
 
             for part in self._request.path:gmatch("[^/]+") do
                 table.insert(parts, part)
@@ -92,7 +91,9 @@ local App = {
                     end
 
                     if current.done then
-                        self._request._params = temp_params
+                        for k, v in pairs(temp_params) do
+                            self._request._params[k:gsub(":", "")] = v
+                        end
                         return trie[1].callback
                     else
                         current = current.next
@@ -112,7 +113,6 @@ local App = {
             end
 
             local in_trie = self._routes.findTries(self)
-            inspect("in_trie", in_trie)
             if in_trie then
                 return in_trie
             end
