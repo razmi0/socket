@@ -2,6 +2,7 @@ local socket = require("socket")
 local Request = require("lib/request")
 local Response = require("lib/response")
 local cjson = require "cjson"
+local inspect = require("lib/utils")
 
 ---@class App
 ---@field _host string The host address to bind the server to
@@ -173,11 +174,59 @@ local App = {
         end
     end,
 
+    has_parameter = function(self, path)
+        return path:find(":") ~= nil
+    end,
+
+    -- Extract parameters from a path
+    -- @param path string The path to extract parameters from
+    -- @return table The parameters extracted from the path
+    extract_parameters = function(self, path)
+        local trie = {}
+        local parts = {}
+
+        function split(path)
+            local parts = {}
+            for part in path:gmatch("[^/]+") do
+                table.insert(parts, part)
+            end
+            return parts
+        end
+
+        -- Split path into parts
+        local parts = split(path)
+
+        -- Create the trie structure
+        local current = trie
+        for i = 1, #parts do
+            local part = parts[i]
+            local is_param = part:match("^:") ~= nil
+
+            -- Create node
+            current.value = part
+            current.is_param = is_param
+
+            -- Add next pointer if not last element
+            if i < #parts then
+                current.next = {}
+                current = current.next
+            else
+                current.done = true
+            end
+        end
+
+        return trie
+    end,
+
     ---Register a GET route handler
     ---@param path string The URL path to handle
     ---@param callback function The callback function to handle the route
     get = function(self, path, callback)
         self._routes.GET[path] = callback
+        if self:has_parameter(path) then
+            local trie = self:extract_parameters(path)
+            inspect("trie", trie)
+        end
     end,
 
     ---Register a POST route handler
