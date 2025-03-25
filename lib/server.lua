@@ -1,12 +1,7 @@
 local socket = require("socket")
 local Request = require("lib/request")
 local Response = require("lib/response")
-local inspector = require("inspect")
 local cjson = require "cjson"
-
-local inspect = function(msg, obj)
-    print(msg, inspector(obj))
-end
 
 ---@class App
 ---@field _host string The host address to bind the server to
@@ -18,6 +13,11 @@ end
 ---@field start fun(self: App, base: table): nil Start the HTTP server and begin listening for connections
 ---@field get fun(self: App, path: string, callback: function): nil Register a GET route handler
 ---@field post fun(self: App, path: string, callback: function): nil Register a POST route handler
+---@field put fun(self: App, path: string, callback: function): nil Register a PUT route handler
+---@field delete fun(self: App, path: string, callback: function): nil Register a DELETE route handler
+---@field patch fun(self: App, path: string, callback: function): nil Register a PATCH route handler
+---@field options fun(self: App, path: string, callback: function): nil Register a OPTIONS route handler
+---@field head fun(self: App, path: string, callback: function): nil Register a HEAD route handler
 local App = {
     __client = nil,
     -- Protected properties
@@ -30,6 +30,11 @@ local App = {
     _routes = {
         GET = {},
         POST = {},
+        PUT = {},
+        DELETE = {},
+        PATCH = {},
+        OPTIONS = {},
+        HEAD = {},
         ---Find a route handler based on the current request method and path
         ---@return function|nil The route handler function if found, nil otherwise
         find = function(self)
@@ -37,6 +42,12 @@ local App = {
         end
     },
 
+    -- TODO: end parsing feat
+    -- TODO: query params
+    -- TODO: path params
+
+    -- Context object for request handlers
+    -- has a lot of helper functions for sending responses(c:)
     _createContext = function(self)
         return {
             req = self._request,
@@ -174,8 +185,41 @@ local App = {
     ---@param callback function The callback function to handle the route
     post = function(self, path, callback)
         self._routes.POST[path] = callback
+    end,
+
+    ---Register a PUT route handler
+    ---@param path string The URL path to handle
+    ---@param callback function The callback function to handle the route
+    put = function(self, path, callback)
+        self._routes.PUT[path] = callback
+    end,
+
+    ---Register a DELETE route handler
+    ---@param path string The URL path to handle
+    ---@param callback function The callback function to handle the route
+    delete = function(self, path, callback)
+        self._routes.DELETE[path] = callback
+    end,
+
+    ---Register a PATCH route handler
+    ---@param path string The URL path to handle
+    ---@param callback function The callback function to handle the route
+    patch = function(self, path, callback)
+        self._routes.PATCH[path] = callback
+    end,
+
+    ---Register a OPTIONS route handler
+    ---@param path string The URL path to handle
+    ---@param callback function The callback function to handle the route
+    options = function(self, path, callback)
+        self._routes.OPTIONS[path] = callback
+    end,
+
+    ---Register a HEAD route handler
+    ---@param path string The URL path to handle
+    ---@param callback function The callback function to handle the route
+    head = function(self, path, callback)
+        self._routes.HEAD[path] = callback
     end
-
 }
-
 return App
