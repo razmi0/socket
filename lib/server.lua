@@ -179,6 +179,18 @@ local App = {
     end,
 
     -- Extract parameters from a path
+    -- example: /users/:id
+    -- will return : 
+    -- {
+    --     value = "users",
+    --     is_param = false,
+    --     done = false,
+    --     next = {
+    --         value = "id",
+    --         is_param = true,
+    --         done = true,
+    --     }
+    -- }
     -- @param path string The path to extract parameters from
     -- @return table The parameters extracted from the path
     _build_url_trie = function(self, path)
@@ -202,8 +214,8 @@ local App = {
             local is_param = part:match("^:") ~= nil
 
             -- Create node
-            current.value = part
             current.is_param = is_param
+            current.value = part
 
             -- Add next pointer if not last element
             if i < #parts then
@@ -222,10 +234,15 @@ local App = {
     ---@param path string The URL path to handle
     ---@param callback function The callback function to handle the route
     get = function(self, path, callback)
-        self._routes.GET[path] = callback
-        if self:has_parameter(path) then
+        if not self:has_parameter(path) then
+            -- more like a classic path indexing route
+            -- complexity: O(1)
+            self._routes.GET[path] = callback
+        else
+            -- more like a TrieRouter (with params)
+            -- complexity: O(n)
+
             local trie = self:_build_url_trie(path)
-            inspect("trie", trie)
         end
     end,
 
