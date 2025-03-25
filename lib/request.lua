@@ -65,6 +65,18 @@ local Request = {
         end
     end,
 
+    _init = function(self)
+        self._queries = {}
+        self._params = {}
+        self._headers = {}
+        self.hasBody = false
+        self.bodyType = nil
+        self.method = nil
+        self.path = nil
+        self.protocol = nil
+        self.body = nil
+    end,
+
     ---Build and parse the HTTP request from a client socket
     ---@private
     ---@param client table The socket client to read the request from
@@ -74,6 +86,8 @@ local Request = {
             error("No client found")
             return false
         end
+
+        self:_init()
 
         function YieldLine()
             local line, err = client:receive()
