@@ -183,7 +183,6 @@ local App = {
     -- @return table The parameters extracted from the path
     _build_url_trie = function(self, path)
         local trie = {}
-        local parts = {}
 
         function split(path)
             local parts = {}
@@ -210,6 +209,7 @@ local App = {
             if i < #parts then
                 current.next = {}
                 current = current.next
+                current.done = false
             else
                 current.done = true
             end
