@@ -1,12 +1,12 @@
 local Response = {
     -- Private properties
-    __client = nil,
     __current = "",
-
+    __client = nil,
     -- Protected properties
-    _protocol = "HTTP/1.1",
-    _status = 200,
-    _statusMessage = "OK",
+    protocol = "HTTP/1.1",
+    status = 200,
+    statusMessage = "OK",
+    body = "",
     _headers = {
         ["Content-Type"] = "application/json",
         ["Content-Length"] = 0,
@@ -15,34 +15,35 @@ local Response = {
         ["Date"] = os.date("%a, %d %b %Y %H:%M:%S GMT"),
         ["Last-Modified"] = os.date("%a, %d %b %Y %H:%M:%S GMT"),
     },
-    _body = "",
 
-    getHeader = function(self, key)
+    header = function(self, key)
+        if not key then
+            return self._headers
+        end
         return self._headers[key]
     end,
 
-    getStatus = function(self)
-        return self._status
-    end,
-
-    getStatusMessage = function(self)
-        return self._statusMessage
-    end,
-
     -- Public methods
+
     setClient = function(self, client)
         self.__client = client
         return self
     end,
 
-    setStatus = function(self, status, statusMessage)
-        self._status = status
-        self._statusMessage = statusMessage
+    setStatus = function(self, status)
+        local codes = {
+            [200] = "OK",
+            [404] = "Not Found",
+            [500] = "Internal Server Error",
+        }
+
+        self.status = status
+        self.statusMessage = codes[status] or "Unknown"
         return self
     end,
 
     setBody = function(self, body)
-        self._body = body
+        self.body = body
         self._headers["Content-Length"] = #body
         self._headers["Last-Modified"] = os.date("%a, %d %b %Y %H:%M:%S GMT")
         return self
@@ -65,14 +66,21 @@ local Response = {
 
     -- Protected methods
     _build = function(self)
-        local heading = self._protocol .. " " .. self._status .. " " .. self._statusMessage .. "\r\n"
+        if not self.__client then
+            error("No client found")
+            return
+        end
+
+        local heading = self.protocol .. " " .. self.status .. " " .. self.statusMessage .. "\r\n"
         local headers = ""
         for key, value in pairs(self._headers) do
             if value ~= nil then
                 headers = headers .. key .. ": " .. value .. "\r\n"
             end
         end
-        self.__current = heading .. headers .. "\r\n" .. self._body
+
+        -- Build the response
+        self.__current = heading .. headers .. "\r\n" .. self.body
     end,
 }
 
