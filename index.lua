@@ -22,6 +22,12 @@ App:get("/json", function(c)
     return c.json(payload)
 end)
 
+App:get("/json/forwhat/:param1", function(c)
+    return c.json({
+        params = c.req:param()
+    })
+end)
+
 App:get("/json/:id/:name", function(c)
     return c.json({
         params = c.req:param()
