@@ -57,21 +57,41 @@ local App = {
             -- Find route => User callback() --
             local route = self._routes.find(self)
 
-            local c = {
+            -- Create a context object for the route handler
+
+            local context = {
                 req = self._request,
                 res = self._response,
+                -- Add a header to the response
+                -- @param key string The header key
+                -- @param value string The header value
                 header = function(key, value)
                     return self._response:addHeader(key, value)
                 end,
-                body = function(body)
+                -- Set the body of the response
+                -- @param body string The body of the response
+                -- @param status number|nil The status code of the response
+                -- @param headers table|nil The headers of the response
+                body = function(body, status, headers)
                     self._response:setBody(body)
+                    if status then
+                        self._response:setStatus(status)
+                    end
+                    if headers then
+                        for key, value in pairs(headers) do
+                            self._response:addHeader(key, value)
+                        end
+                    end
                 end,
+                -- Set the status code of the response
+                -- @param status number The status code of the response
                 status = function(status)
                     self._response:setStatus(status)
                 end
             }
 
-            local void = route(c)
+            -- Run the route handler
+            local void = route(context)
 
             client:close()
 
