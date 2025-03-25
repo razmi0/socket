@@ -1,9 +1,14 @@
-local Raz = require("lib/server")
+local App = require("lib/server")
+
 
 local run = function(c)
-    c.res:setBody(
-        "{\"message\": \"Hello, World \"}"
-    ):send()
+    local method = c.req.method
+    local path = c.req.path
+    c.res:setBody("{\"method\": \"" .. method .. "\", \"path\": \"" .. path .. "\"}"):send()
 end
 
-Raz:start(run, { port = 8080 })
+App:get("/", run)
+App:post("/", run)
+
+
+App:start({ port = 8080 })
