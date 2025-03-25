@@ -66,4 +66,7 @@ make_request "GET" "http://localhost:8080/json?foo=bar&baz=foo"
 # Test GET :8080/json/:id/:name
 make_request "GET" "http://localhost:8080/json/123/foo"
 
+# Test GET :8080/json/forwhat/:param1
+make_request "GET" "http://localhost:8080/json/forwhat/foo"
+
 echo -e "\n${BLUE}All tests completed!${NC}"
