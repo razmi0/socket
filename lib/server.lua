@@ -1,5 +1,8 @@
 local socket = require("socket")
 local inspect = require("lib/utils")
+local request = require("lib/request")
+local response = require("lib/response")
+local context = require("lib/context")
 
 ---@class App
 ---@field _host string The host address to bind the server to
@@ -88,9 +91,7 @@ local App = {
                     else
                         current = current.next
                     end
-
                 end
-
             end
         end,
 
@@ -113,92 +114,15 @@ local App = {
     },
 
     -- TODO: end parsing feat
-    -- TODO: path params
-    -- Context object for request handlers
-    -- has a lot of helper functions for sending responses(c:)
-    -- _createContext = function(self, request, response)
-    --     return {
-    --         req = request,
-    --         res = response,
-    --         -- Add a header to the response
-    --         -- @param key string The header key
-    --         -- @param value string The header value
-    --         header = function(key, value)
-    --             response:addHeader(key, value)
-    --             return response
-    --         end,
-    --         -- Set the body of the response
-    --         -- @param body string The body of the response
-    --         -- @param status number|nil The status code of the response
-    --         -- @param headers table|nil The headers of the response
-    --         body = function(body, status, headers)
-    --             response:setBody(body)
-    --             if status then
-    --                 response:setStatus(status)
-    --             end
-    --             if headers then
-    --                 for key, value in pairs(headers) do
-    --                     response:addHeader(key, value)
-    --                 end
-    --             end
-    --             return response
-    --         end,
-
-    --         text = function(text)
-    --             response:setStatus(200)
-    --             response:setBody(text)
-    --             response:addHeader("Content-Type", "text/plain")
-    --             return response
-    --         end,
-
-    --         json = function(table)
-    --             response:setStatus(200)
-    --             response:setBody(cjson.encode(table))
-    --             response:addHeader("Content-Type", "application/json")
-    --             return response
-    --         end,
-
-    --         html = function(html)
-    --             response:setStatus(200)
-    --             response:setBody(html)
-    --             response:addHeader("Content-Type", "text/html")
-    --             return response
-    --         end,
-
-    --         -- Set the status code of the response
-    --         -- @param status number The status code of the response
-    --         status = function(status)
-    --             response:setStatus(status)
-    --             return response
-    --         end,
-
-    --         notFound = function()
-    --             response:setStatus(404)
-    --             response:setBody("Not Found")
-    --             response:addHeader("Content-Type", "text/plain")
-    --             return response
-    --         end,
-
-    --         -- Store key-value pairs in the context for use in request handlers
-    --         -- @param key string The key to set
-    --         -- @param value string The value to set
-    --         kvSpace = {},
-    --         set = function(key, value)
-    --             self.kvSpace[key] = value
-    --         end,
-    --         -- Get a key-value pair from the context
-    --         get = function(key)
-    --             return self.kvSpace[key]
-    --         end
-
-    --     }
-    -- end,
-
-    -- Public methods
     ---Start the HTTP server and begin listening for connections
-    ---@param base table Configuration table containing host and port
-    ---@field base.host string|nil Optional host address to bind to (defaults to _host)
-    ---@field base.port number|nil Optional port number to bind to (defaults to _port)
+    ---@param base table Configuration table containing base.host and base.port
+    ---@example
+    ---@code
+    ---App:start({
+    ---    host = "127.0.0.1",
+    ---    port = 8080
+    ---})
+    ---@endcode
     start = function(self, base)
         if base then
             self._host = base.host or self._host
@@ -219,26 +143,26 @@ local App = {
                 break
             end
             client:settimeout(0.5)
-            local request = require("lib/request")
-            local response = require("lib/response")
+            -- local request = require("lib/request")
+            -- local response = require("lib/response")
             if request:_build(client) then
                 -- Set up response
                 response:_bind(client)
                 -- Create a context object for the route handler
-                local context = require("lib/context"):create(request, response)
+                local ctx = context:create(request, response)
                 -- Find the route handler
                 local route_handler = self._routes.find(self, request)
                 if route_handler then
                     -- Run the route handler
-                    -- Truthy value returning from the route handler is considered 
+                    -- Truthy value returning from the route handler is considered
                     -- as a valid condition to send the response
-                    local viable = route_handler(context)
+                    local viable = route_handler(ctx)
                     if viable then
-                        context.res:send()
+                        ctx.res:send()
                     end
                 else
                     -- Handle not found
-                    context:notFound()
+                    ctx:notFound()
                 end
             else
                 print("Failed to build request")
@@ -258,7 +182,7 @@ local App = {
 
     -- Extract parameters from a path
     -- example: /users/:id
-    -- will return : 
+    -- will return :
     -- {
     --     value = "users",
     --     is_param = false,
@@ -325,7 +249,6 @@ local App = {
             })
             table.insert(self._routes.GET.tries, trie)
         end
-
     end,
 
     ---Register a POST route handler
