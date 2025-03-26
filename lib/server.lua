@@ -1,10 +1,6 @@
 local socket = require("socket")
-local Request = require("lib/request")
-local Response = require("lib/response")
 local cjson = require "cjson"
 local inspect = require("lib/utils")
-
-local req_counter = 0;
 
 ---@class App
 ---@field _host string The host address to bind the server to
@@ -20,8 +16,8 @@ local req_counter = 0;
 ---@field head fun(self: App, path: string, callback: function): nil Register a HEAD route handler
 local App = {
     -- Protected properties
-    _host = "127.0.0.1",
-    _port = 0,
+    _host = arg[1] or "127.0.0.1",
+    _port = tonumber(arg[2]) or 8080,
 
     _routes = {
         GET = {
@@ -119,7 +115,6 @@ local App = {
 
     -- TODO: end parsing feat
     -- TODO: path params
-
     -- Context object for request handlers
     -- has a lot of helper functions for sending responses(c:)
     _createContext = function(self, request, response)
@@ -206,37 +201,32 @@ local App = {
     ---@field base.host string|nil Optional host address to bind to (defaults to _host)
     ---@field base.port number|nil Optional port number to bind to (defaults to _port)
     start = function(self, base)
-        local host = base.host or self._host
-        local port = base.port or self._port
+        if base then
+            self._host = base.host or self._host
+            self._port = base.port or self._port
+        end
 
-        local server = assert(socket.bind(host, port), "Failed to bind server!")
+        local server = assert(socket.bind(self._host, self._port), "Failed to bind server!")
         local ip, port = server:getsockname()
-        print("listening on http://" .. ip .. ":" .. port)
+        print("Listening on http://" .. ip .. ":" .. port)
 
         while true do
             local client, err = server:accept()
-
             if not client then
                 break
             end
-
             if err then
                 print("error", err)
                 break
             end
-
             client:settimeout(0.5)
-
             local request = require("lib/request")
             local response = require("lib/response")
-
             if request:_build(client) then
-
                 -- Set up response
                 response:_bind(client)
                 -- Create a context object for the route handler
                 local context = self:_createContext(request, response)
-
                 -- Find the route handler
                 local route_handler = self._routes.find(self, request)
                 if route_handler then
