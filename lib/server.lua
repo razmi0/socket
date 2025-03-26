@@ -4,12 +4,11 @@ local Response = require("lib/response")
 local cjson = require "cjson"
 local inspect = require("lib/utils")
 
+local req_counter = 0;
+
 ---@class App
 ---@field _host string The host address to bind the server to
 ---@field _port number The port number to bind the server to
----@field _server table The socket server instance
----@field _request Request The request handler instance
----@field _response Response The response handler instance
 ---@field _routes table The routing table containing GET and POST route handlers
 ---@field start fun(self: App, base: table): nil Start the HTTP server and begin listening for connections
 ---@field get fun(self: App, path: string, callback: function): nil Register a GET route handler
@@ -20,13 +19,9 @@ local inspect = require("lib/utils")
 ---@field options fun(self: App, path: string, callback: function): nil Register a OPTIONS route handler
 ---@field head fun(self: App, path: string, callback: function): nil Register a HEAD route handler
 local App = {
-    __client = nil,
     -- Protected properties
-    _host = "localhost",
+    _host = "127.0.0.1",
     _port = 0,
-    _server = nil,
-    _request = Request,
-    _response = Response,
 
     _routes = {
         GET = {
@@ -60,23 +55,23 @@ local App = {
             indexed = {}
         },
 
-        findLinear = function(self)
+        findLinear = function(self, request)
             -- the diference comparison in lua : "nil" ~= nil
-            local indexed = self._routes[self._request.method].indexed[self._request.path]
+            local indexed = self._routes[request.method].indexed[request.path]
             if indexed then
                 return indexed
             end
         end,
 
-        findTries = function(self)
+        findTries = function(self, request)
             -- try to find a route in the TrieRouter
             local parts = {}
 
-            for part in self._request.path:gmatch("[^/]+") do
+            for part in request.path:gmatch("[^/]+") do
                 table.insert(parts, part)
             end
 
-            for _, trie in ipairs(self._routes[self._request.method].tries) do
+            for _, trie in ipairs(self._routes[request.method].tries) do
                 local current = trie
                 local temp_params = {}
 
@@ -92,7 +87,7 @@ local App = {
 
                     if current.done then
                         for k, v in pairs(temp_params) do
-                            self._request._params[k:gsub(":", "")] = v
+                            request._params[k:gsub(":", "")] = v
                         end
                         return trie[1].callback
                     else
@@ -106,13 +101,13 @@ local App = {
 
         ---Find a route handler based on the current request method and path
         ---@return function|nil The route handler function if found, nil otherwise
-        find = function(self)
-            local indexed = self._routes.findLinear(self)
+        find = function(self, request)
+            local indexed = self._routes.findLinear(self, request)
             if indexed then
                 return indexed
             end
 
-            local in_trie = self._routes.findTries(self)
+            local in_trie = self._routes.findTries(self, request)
             if in_trie then
                 return in_trie
             end
@@ -127,67 +122,67 @@ local App = {
 
     -- Context object for request handlers
     -- has a lot of helper functions for sending responses(c:)
-    _createContext = function(self)
+    _createContext = function(self, request, response)
         return {
-            req = self._request,
-            res = self._response,
+            req = request,
+            res = response,
             -- Add a header to the response
             -- @param key string The header key
             -- @param value string The header value
             header = function(key, value)
-                self._response:addHeader(key, value)
-                return self._response
+                response:addHeader(key, value)
+                return response
             end,
             -- Set the body of the response
             -- @param body string The body of the response
             -- @param status number|nil The status code of the response
             -- @param headers table|nil The headers of the response
             body = function(body, status, headers)
-                self._response:setBody(body)
+                response:setBody(body)
                 if status then
-                    self._response:setStatus(status)
+                    response:setStatus(status)
                 end
                 if headers then
                     for key, value in pairs(headers) do
-                        self._response:addHeader(key, value)
+                        response:addHeader(key, value)
                     end
                 end
-                return self._response
+                return response
             end,
 
             text = function(text)
-                self._response:setStatus(200)
-                self._response:setBody(text)
-                self._response:addHeader("Content-Type", "text/plain")
-                return self._response
+                response:setStatus(200)
+                response:setBody(text)
+                response:addHeader("Content-Type", "text/plain")
+                return response
             end,
 
             json = function(table)
-                self._response:setStatus(200)
-                self._response:setBody(cjson.encode(table))
-                self._response:addHeader("Content-Type", "application/json")
-                return self._response
+                response:setStatus(200)
+                response:setBody(cjson.encode(table))
+                response:addHeader("Content-Type", "application/json")
+                return response
             end,
 
             html = function(html)
-                self._response:setStatus(200)
-                self._response:setBody(html)
-                self._response:addHeader("Content-Type", "text/html")
-                return self._response
+                response:setStatus(200)
+                response:setBody(html)
+                response:addHeader("Content-Type", "text/html")
+                return response
             end,
 
             -- Set the status code of the response
             -- @param status number The status code of the response
             status = function(status)
-                self._response:setStatus(status)
-                return self._response
+                response:setStatus(status)
+                return response
             end,
 
             notFound = function()
-                self._response:setStatus(404)
-                self._response:setBody("Not Found")
-                self._response:addHeader("Content-Type", "text/plain")
-                return self._response
+                response:setStatus(404)
+                response:setBody("Not Found")
+                response:addHeader("Content-Type", "text/plain")
+                return response
             end,
 
             -- Store key-value pairs in the context for use in request handlers
@@ -214,41 +209,57 @@ local App = {
         local host = base.host or self._host
         local port = base.port or self._port
 
-        self._server = assert(socket.bind(host, port), "Failed to bind server!")
-        print("listening on http://" .. host .. ":" .. port)
+        local server = assert(socket.bind(host, port), "Failed to bind server!")
+        local ip, port = server:getsockname()
+        print("listening on http://" .. ip .. ":" .. port)
 
         while true do
-            local client = self._server:accept()
+            local client, err = server:accept()
+
+            if not client then
+                break
+            end
+
+            if err then
+                print("error", err)
+                break
+            end
+
             client:settimeout(0.5)
 
-            -- bad dependency injection
-            self.__client = client
-            self._request:_build(client)
-            self._response:_bind(client)
+            local request = require("lib/request")
+            local response = require("lib/response")
 
-            -- Create a context object for the route handler
-            local context = self:_createContext()
+            if request:_build(client) then
 
-            -- Find route => User callback() --
-            local route = self._routes.find(self)
+                -- Set up response
+                response:_bind(client)
+                -- Create a context object for the route handler
+                local context = self:_createContext(request, response)
 
-            if route then
-                local viable = route(context)
-
-                -- Run the route handler
-                if viable then
-                    context.res:send()
+                -- Find the route handler
+                local route_handler = self._routes.find(self, request)
+                if route_handler then
+                    -- Run the route handler
+                    -- Truthy value returning from the route handler is considered 
+                    -- as a valid condition to send the response
+                    local viable = route_handler(context)
+                    if viable then
+                        context.res:send()
+                    end
+                else
+                    -- Handle not found
+                    context:notFound()
                 end
             else
-                context:notFound()
-                context.res:send()
+                print("Failed to build request")
             end
 
             client:close()
 
             -- Print some debug info
-            print("<--", self._request.method, self._request.path)
-            print("-->", self._response.status, self._response:header("Content-Type"))
+            print("<--", request.method, request.path)
+            print("-->", response.status, response:header("Content-Type"))
         end
     end,
 
