@@ -23,6 +23,18 @@ local Request = {
     hasBody = false,
     bodyType = nil,
 
+    _init = function(self)
+        self._headers = {}
+        self._queries = {}
+        self._params = {}
+        self.method = nil
+        self.path = nil
+        self.protocol = nil
+        self.body = ""
+        self.hasBody = false
+        self.bodyType = nil
+    end,
+
     ---Get a header value or all headers
     ---@param key string|nil The header key to retrieve, or nil to get all headers
     ---@return table|string|nil The header value, all headers, or nil if not found
@@ -65,27 +77,11 @@ local Request = {
         end
     end,
 
-    _init = function(self)
-        self._queries = {}
-        self._params = {}
-        self._headers = {}
-        self.hasBody = false
-        self.bodyType = nil
-        self.method = nil
-        self.path = nil
-        self.protocol = nil
-        self.body = nil
-    end,
-
     ---Build and parse the HTTP request from a client socket
     ---@private
     ---@param client table The socket client to read the request from
     ---@return boolean success True if the request was successfully parsed
     _build = function(self, client)
-        if not client then
-            error("No client found")
-            return false
-        end
 
         self:_init()
 
@@ -150,6 +146,7 @@ local Request = {
                 end
             end
         end
+        return true
     end
 
 }
