@@ -26,7 +26,6 @@ local Response = {
     _headers = {
         ["Content-Type"] = "application/json",
         ["Content-Length"] = 0,
-        ["Connection"] = "close",
         ["Server"] = "Raz",
         ["Date"] = os.date("%a, %d %b %Y %H:%M:%S GMT"),
         ["Last-Modified"] = os.date("%a, %d %b %Y %H:%M:%S GMT")
