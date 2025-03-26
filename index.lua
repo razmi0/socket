@@ -12,28 +12,25 @@ App:get("/", function(c)
     return c.html("<h1>Home page</h1>")
 end)
 
-App:get("/json", function(c)
+App:get("/query", function(c)
     local query = c.req:query()
-    if next(query) then
-        return c.json({
-            query = query
-        })
-    end
+    return c.json(query)
+end)
+
+App:get("/json", function(c)
     return c.json(payload)
 end)
 
-App:get("/json/forwhat/:param1", function(c)
+App:get("/users/:name/:id", function(c)
     return c.json({
         params = c.req:param()
     })
 end)
 
-App:get("/json/:id/:name", function(c)
+App:get("/users/thomas/oui", function(c)
     return c.json({
         params = c.req:param()
     })
 end)
 
-App:start({
-    port = 8080
-})
+App:start()
