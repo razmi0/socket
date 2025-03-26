@@ -21,9 +21,14 @@ make_request() {
     local url=$2
     echo -e "\n${BLUE}Testing $method $url${NC}"
     
-    # Store the response and timing in separate variables
-    local response=$(curl -s -X $method "$url")
-    local timing=$(curl -s -w "\n%{time_namelookup} %{time_connect} %{time_total}" -X $method "$url" | tail -n 1)
+    # Make a single request that captures both response and timing
+    local output=$(curl -s -w "\n%{time_namelookup} %{time_connect} %{time_total}" -X $method "$url")
+    
+    # Extract the response (everything except the last line)
+    local response=$(echo "$output" | sed '$d')
+    
+    # Extract timing (last line only)
+    local timing=$(echo "$output" | tail -n 1)
     
     # Print response if not empty
     if [ ! -z "$response" ]; then
