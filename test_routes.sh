@@ -21,24 +21,27 @@ make_request() {
     local url=$2
     echo -e "\n${BLUE}Testing $method $url${NC}"
     
-    # Make a single request that captures both response and timing
-    local output=$(curl -s -w "\n%{time_namelookup} %{time_connect} %{time_total}" -X $method "$url")
+    # Make a request that captures response, status code, and timing
+    local output=$(curl -s -o /tmp/response_body -w "%{http_code}\n%{time_namelookup} %{time_connect} %{time_total}" -X $method "$url")
     
-    # Extract the response (everything except the last line)
-    local response=$(echo "$output" | sed '$d')
+    # Extract status code (first line of output)
+    local status_code=$(echo "$output" | head -n 1)
     
-    # Extract timing (last line only)
+    # Extract timing information (second line)
     local timing=$(echo "$output" | tail -n 1)
     
     # Print response if not empty
-    if [ ! -z "$response" ]; then
-        echo "$response"
+    if [ -s /tmp/response_body ]; then
+        cat /tmp/response_body
     fi
+    
+    # Print status code
+    # echo -e "${BLUE}Status Code: $status_code${NC}"
     
     # Parse and print timing information
     read dns connect total <<< "$timing"
 
-    # convert to milliseconds 
+    # Convert to nanoseconds
     dns=$(echo "$dns * 1000000" | bc)
     connect=$(echo "$connect * 1000000" | bc)
     total=$(echo "$total * 1000000" | bc)
@@ -48,13 +51,14 @@ make_request() {
     connect=${connect:0:${#connect}-6}
     total=${total:0:${#total}-6}
 
-    echo -e "${BLUE}Time:${NC}"
+    echo -e "\n${BLUE}Time:${NC}"
     echo -e "  DNS lookup: ${dns} ns"
     echo -e "  Connect:    ${connect} ns"
     echo -e "  Total:      ${total} ns"
-    
-    print_result "$method $url"
+
+    print_result "$method $url $status_code"
 }
+
 
 echo -e "${BLUE}Starting API tests...${NC}"
 echo "====================="

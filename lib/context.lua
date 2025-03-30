@@ -1,105 +1,111 @@
+local inspect = require("lib/utils")
 local cjson = require "cjson"
 
--- Context object for request handlers
--- has a lot of helper functions & syntactic sugar / makes the code easier
--- @field req Request The request object
--- @field res Response The response object
--- @field header fun(key: string, value: string): Response Add a header to the response
--- @field body fun(body: string, status: number?, headers: table?): Response Set the body of the response
--- @field status fun(status: number): Response Set the status code of the response
--- @field notFound fun(): Response Set the status code to 404 and the body to "Not Found"
-local Context = {
-    create = function(self, request, response)
-        return {
-            req = request,
-            res = response,
-            -- Add a header to the response
-            -- @param key string The header key
-            -- @param value string The header value
-            -- @return Response The response object
-            header = function(key, value)
-                response:addHeader(key, value)
-                return response
-            end,
-            -- Set the body of the response
-            -- @param body string The body of the response
-            -- @param status number|nil The status code of the response
-            -- @param headers table|nil The headers of the response
-            -- @return Response The response object
-            body = function(body, status, headers)
-                response:setBody(body)
-                if status then
-                    response:setStatus(status)
-                end
-                if headers then
-                    for key, value in pairs(headers) do
-                        response:addHeader(key, value)
-                    end
-                end
-                return response
-            end,
+---@class Context
+---@field req Request The request object
+---@field res Response The response object
+---@field kvSpace table The key-value store for request handlers
+---@field header fun(key: string, value: string): Response Add a header to the response
+---@field body fun(body: string, status: number?, headers: table?): Response Set the body of the response
+---@field text fun(text: string): Response Set the body of the response to a text string
+---@field json fun(table: table): Response Set the body of the response to a JSON string
+---@field html fun(html: string): Response Set the body of the response to an HTML string
+---@field status fun(status: number): Response Set the status code of the response
+---@field notFound fun(): Response Set the status code to 404 and the body to "Not Found"
+---@field set fun(key: string, value: string): nil Set a key-value pair in the context
+---@field get fun(key: string): string Get a key-value pair from the context
+---@field new fun(request: Request, response: Response): Context Create a new context
 
-            -- Set the body of the response to a text string
-            -- @param text string The text to set the body to
-            -- @return Response The response object
-            text = function(text)
-                response:setStatus(200)
-                response:setBody(text)
-                response:addHeader("Content-Type", "text/plain")
-                return response
-            end,
+local Context = {}
+Context.__index = Context
 
-            -- Set the body of the response to a JSON object
-            -- @param table table The table to encode to JSON
-            -- @return Response The response object
-            json = function(table)
-                response:setStatus(200)
-                response:setBody(cjson.encode(table))
-                response:addHeader("Content-Type", "application/json")
-                return response
-            end,
+---@param request Request The request object
+---@param response Response The response object
+---@return Context The new context object
+function Context.new(request, response)
+    local instance = setmetatable({}, Context)
+    instance.req = request
+    instance.res = response
+    instance.kvSpace = {}
+    return instance
+end
 
-            html = function(html)
-                response:setStatus(200)
-                response:setBody(html)
-                response:addHeader("Content-Type", "text/html")
-                return response
-            end,
+---@param key string The key to add to the response header
+---@param value string The value to add to the response header
+---@return Response The response object
+function Context:header(key, value)
+    self.res:addHeader(key, value)
+    return self.res
+end
 
-            -- Set the status code of the response
-            -- @param status number The status code of the response
-            -- @return Response The response object
-            status = function(status)
-                response:setStatus(status)
-                return response
-            end,
-
-            -- Set the status code to 404 and the body to "Not Found"
-            -- @return Response The response object
-            notFound = function()
-                response:setStatus(404)
-                response:setBody("Not Found")
-                response:addHeader("Content-Type", "text/plain")
-                return response
-            end,
-
-            -- Key-value store for request handlers
-            kvSpace = {},
-            -- Store key-value pairs in the context for use in request handlers
-            -- @param key string The key to set
-            -- @param value string The value to set
-            set = function(key, value)
-                self.kvSpace[key] = value
-            end,
-            -- Get a key-value pair from the context
-            -- @param key string The key to get
-            -- @return string The value of the key
-            get = function(key)
-                return self.kvSpace[key]
-            end
-
-        }
+---@param body string The body to set in the response
+---@param status number? The status code to set in the response
+---@param headers table? The headers to add to the response
+---@return Response The response object
+function Context:body(body, status, headers)
+    self.res:setBody(body)
+    if status then
+        self.res:setStatus(status)
     end
-}
+    if headers then
+        for key, value in pairs(headers) do
+            self.res:addHeader(key, value)
+        end
+    end
+    return self.res
+end
+
+---@param text string The text to set in the response
+---@return Response The response object
+function Context:text(text)
+    self.res:setStatus(200)
+    self.res:setBody(text)
+    self.res:addHeader("Content-Type", "text/plain")
+    return self.res
+end
+
+---@param table table The table to set in the response
+---@return Response The response object
+function Context:json(table)
+    self.res:setStatus(200)
+    self.res:setBody(cjson.encode(table))
+    self.res:addHeader("Content-Type", "application/json")
+    return self.res
+end
+
+---@param html string The HTML to set in the response
+---@return Response The response object
+function Context:html(html)
+    self.res:setStatus(200)
+    self.res:setBody(html)
+    self.res:addHeader("Content-Type", "text/html")
+    return self.res
+end
+
+---@param status number The status code to set in the response
+---@return Response The response object
+function Context:status(status)
+    self.res:setStatus(status)
+    return self.res
+end
+
+---@return Response The response object
+function Context:notFound()
+    self.res:setStatus(404)
+    self.res:setBody("Not Found")
+    return self.res
+end
+
+---@param key string The key to set in the context
+---@param value string The value to set in the context
+function Context:set(key, value)
+    self.kvSpace[key] = value
+end
+
+---@param key string The key to get from the context
+---@return string The value of the key
+function Context:get(key)
+    return self.kvSpace[key]
+end
 
 return Context

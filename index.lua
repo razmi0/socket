@@ -1,6 +1,8 @@
 local App = require("lib/server")
 local inspect = require("lib/utils")
 
+local app = App.new()
+
 local payload = {
     some_object = {
         foo = "bar"
@@ -8,8 +10,8 @@ local payload = {
     some_array = { "foo", "bar", "baz" }
 }
 
-App:get("/", function(c)
-    return c.html(
+app:get("/", function(c)
+    return c:html(
         [[
         <!DOCTYPE html>
         <html>
@@ -46,25 +48,26 @@ App:get("/", function(c)
     )
 end)
 
-App:get("/query", function(c)
+app:get("/query", function(c)
     local query = c.req:query()
-    return c.json({ query = query })
+    return c:json({ query = query })
 end)
 
-App:get("/json", function(c)
-    return c.json({ json = payload })
+app:get("/json", function(c)
+    return c:json({ json = payload })
 end)
 
-App:get("/users/:name/:id", function(c)
-    return c.json({
+app:get("/users/:name/:id", function(c)
+    return c:json({
         with_params = c.req:param()
     })
 end)
 
-App:get("/users/thomas/oui", function(c)
-    return c.json({
+app:get("/users/thomas/oui", function(c)
+    return c:json({
         without_params = c.req:param()
     })
 end)
 
-App:start()
+
+app:start()
