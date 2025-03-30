@@ -1,5 +1,5 @@
-local inspect = require("lib/utils")
 local cjson = require "cjson"
+local mime = require 'mimetypes'
 
 ---@class Context
 ---@field req Request The request object
@@ -106,6 +106,20 @@ end
 ---@return string The value of the key
 function Context:get(key)
     return self.kvSpace[key]
+end
+
+function Context:static(config)
+    local file = io.open(config.path, "r")
+    if not file then
+        error("Could not find file: " .. config.path)
+    end
+    local mimeType = mime.guess(self.req.path)
+    self.res:setContentType(mimeType)
+    self.res:setStatus(200)
+    local content = file:read("*a")
+    self.res:setBody(content)
+    file:close()
+    return self.res
 end
 
 return Context
