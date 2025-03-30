@@ -51,14 +51,14 @@ local default_response = {
         ["Server"] = "Raz",
         ["Date"] = os.date("%a, %d %b %Y %H:%M:%S GMT"),
         ["Last-Modified"] = os.date("%a, %d %b %Y %H:%M:%S GMT"),
-        ["Connection"] = "close"
     }
 }
 
 ---Constructor for the Response object
 ---@param client table The socket client instance
+---@param logger? Inspect The logger instance
 ---@return Response
-function Response.new(client)
+function Response.new(client, logger)
     local instance = setmetatable({}, Response)
 
     for key, value in pairs(default_response) do
@@ -79,6 +79,12 @@ function Response.new(client)
     instance:_build()
 
     return instance
+end
+
+function Response:log(content)
+    if self.__logger then
+        self.__logger:push(content)
+    end
 end
 
 --- Get a header value or all headers
@@ -131,8 +137,7 @@ end
 function Response:send()
     self:_build()
     self.__client:send(self.__current)
-    print("-->", self.status)
-    -- self.__client:close()
+    self:log("Sending response" .. "-->" .. self.status .. " " .. self.statusMessage)
 end
 
 --- Build the complete HTTP response string
@@ -140,6 +145,7 @@ end
 --- In between, the response can be modified
 --- @private
 function Response:_build()
+    self:log("Building response")
     local heading = ("%s %d %s\r\n"):format(
         self.protocol,
         self.status,

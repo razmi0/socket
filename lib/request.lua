@@ -1,4 +1,4 @@
-local inspect = require("lib/utils")
+local Inspect = require("lib/utils")
 
 ---@class Request
 ---@field __client table The socket client instance
@@ -13,6 +13,11 @@ local inspect = require("lib/utils")
 ---@field bodyType string The type of the body
 ---@field bodyParsed boolean Whether the body has been parsed
 ---@field _parse fun(self: Request): boolean Parse the request (heading, headers, body)
+---@field _close fun(self: Request): boolean Close the request
+---@field header fun(self: Request, key: string): string|table Get a header value or all headers
+---@field query fun(self: Request, key: string): string|table Get a query value or all queries
+---@field param fun(self: Request, key: string): string|table Get a parameter value or all parameters
+---@field parseBody fun(self: Request, type: string): Request Parse the request body according to the specified content type
 
 local Request = {}
 Request.__index = Request
@@ -30,12 +35,14 @@ local default_request = {
     hasBody = false,
     bodyType = nil,
     bodyParsed = false,
+    keepAlive = false,
 }
 
 ---Constructor for the Request object
 ---@param client table The socket client instance
+---@param logger? Inspect The logger instance
 ---@return Request
-function Request.new(client)
+function Request.new(client, logger)
     local instance = setmetatable({}, Request)
 
     for key, value in pairs(default_request) do
@@ -53,8 +60,18 @@ function Request.new(client)
         error("Client failed to bind to request")
     end
 
+    if logger then
+        instance.__logger = logger
+    end
+
 
     return instance
+end
+
+function Request:log(content, is_err)
+    if self.__logger then
+        self.__logger:push(content, is_err)
+    end
 end
 
 --- Get a header value or all headers
@@ -92,6 +109,7 @@ end
 --- @param type string The content type to parse the body as
 --- @return Request
 function Request:parseBody(type)
+    self:log("Parsing body")
     local bodyType = {
         expected = self._headers["Content-Type"],
         asked = type
@@ -129,6 +147,7 @@ end
 ---Extract parts from the request heading line
 ---@return string|nil, string|nil, string|nil, table|nil The method, path, protocol, query parameters, or nil
 function Request:_extractPathParts()
+    self:log("Extracting path parts")
     local headingLine, err = self:_receiveLine()
     if not headingLine then
         return nil, "Failed to read request heading " .. err .. " "
@@ -147,13 +166,14 @@ function Request:_extractPathParts()
     self.protocol = protocol
     self._queries = queryTable
 
-    print("<--", self.method, self.path)
+    self:log("Request: " .. self.method .. " " .. self.path)
 
     return "true"
 end
 
 ---Extract the headers from the request
 function Request:_extractHeader()
+    self:log("Extracting headers")
     -- Parse the headers
     while true do
         local headerLine, err = self:_receiveLine()
@@ -166,7 +186,7 @@ function Request:_extractHeader()
 
         local key, value = headerLine:match("([^:]+):%s*(.+)")
         if not key then
-            print("Failed to parse header line: " .. headerLine)
+            self:log("Failed to parse header line: " .. headerLine, true)
             break
         end
 
@@ -182,7 +202,7 @@ function Request:_extractBody()
         if err then
             self.hasBody = false
             self.body = nil
-            print("Failed to receive request body: " .. err)
+            self:log("Failed to receive request body: " .. err, true)
             return false
         else
             self.body = body
@@ -193,20 +213,21 @@ end
 ---Parse the incoming request
 ---@return boolean
 function Request:_parse()
-    print("parsing incoming request")
+    self:log("Parsing incoming request")
     local parsing_ok, err = pcall(function()
         -- Parse the first line (request heading)
         local ok, err = self:_extractPathParts()
         if not ok then
-            print("Failed to extract path parts: " .. err)
+            self:log("Failed to extract path parts: " .. err, true)
             return false
         end
         self:_extractHeader()
+
         -- Parse the body if it exists
         if self._headers["Content-Length"] then
             local ok = self:_extractBody()
             if not ok then
-                print("Failed to extract body: " .. err)
+                self:log("Failed to extract body: " .. err, true)
                 return false
             end
         end
@@ -216,7 +237,7 @@ function Request:_parse()
     )
 
     if not parsing_ok then
-        inspect("Request Parse Error", err)
+        self:log("Request Parse Error: " .. err)
         return false
     end
 

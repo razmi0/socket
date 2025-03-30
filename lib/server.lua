@@ -1,9 +1,11 @@
 local socket = require("socket")
-local inspect = require("lib/utils")
+local Inspect = require("lib/utils")
 local Request = require("lib/request")
 local Response = require("lib/response")
 local Context = require("lib/context")
 local Routes = require("lib/routes")
+
+local log = Inspect.new({ trace = false })
 
 ---@class App
 ---@field _host string The host address to bind the server to
@@ -18,6 +20,7 @@ local App = {}
 App.__index = App
 
 function App.new()
+    log:push("Creating new App")
     local instance = setmetatable({}, App)
     instance._host = arg[1] or "127.0.0.1"
     instance._port = tonumber(arg[2]) or 8080
@@ -26,22 +29,35 @@ function App.new()
 end
 
 function App:get(path, callback)
+    log:push("Registering GET " .. path)
     self._routes:_add_route("GET", path, callback)
 end
 
 function App:post(path, callback)
+    log:push("Registering POST " .. path)
     self._routes:_add_route("POST", path, callback)
 end
 
+---@class ServerConfig
+---@field host?  string
+---@field port? number
+---@field verbose? boolean
+
+---@param server_config? ServerConfig
 function App:start(server_config)
+    log:push("Starting server")
     if server_config then
         self._host = server_config.host or self._host
         self._port = server_config.port or self._port
+        local verbose = server_config.verbose ~= nil and server_config.verbose or false
+        log:setVerbose(verbose)
     end
     local server = assert(socket.bind(self._host, self._port), "Failed to bind server!")
     local ip, port = server:getsockname()
-    print("Listening on http://" .. ip .. ":" .. port)
+    -- print("Listening on http://" .. ip .. ":" .. port)
 
+    log:push("Starting loop server : " .. ip .. ":" .. port)
+    log:print()
     self:_loop(server)
 end
 
@@ -59,24 +75,26 @@ function App:_loop(server)
             goto continue
         end
 
+        log:push("Accepted client")
 
-        local req_ok, res_ok = pcall(function()
-            local req = Request.new(client)
-            local res = Response.new(client)
+
+        local req_ok, success, result = pcall(function()
+            local req = Request.new(client, log)
+            local res = Response.new(client, log)
             local ctx = Context.new(req, res)
 
 
 
 
             if not req or not res or not ctx then
-                print("Failed to initialize !")
+                log:push("Failed to initialize !")
                 res:setStatus(400)
                 res:send()
             end
 
             local ok = req:_parse()
             if not ok then
-                print("Failed to parse request !")
+                log:push("Failed to parse request !")
                 res:setStatus(400)
                 res:send()
                 return
@@ -85,44 +103,43 @@ function App:_loop(server)
             -- Find the route handler
             local route_handler = self._routes:find(req)
             if route_handler then
+                log:push("Found route handler")
                 local handler_ok, handler_err = pcall(route_handler, ctx)
                 if not handler_ok then
-                    print("Handler error:", handler_err)
+                    log:push("Handler error: " .. handler_err)
                     Response.new(client):setStatus(500):send()
                 else
+                    log:push("Sending response")
                     res:send()
                 end
             else
-                -- Handle not found
+                log:push("No route handler found")
                 Response.new(client):setStatus(404):send()
             end
-
-
 
 
             return true
         end)
 
         if not req_ok then
-            print("Server failed :: ", res_ok)
+            log:push("Server failed !")
             Response.new(client):setStatus(500):send()
-            -- print("-->", tostring(500))
-        else
-            -- print("-->", tostring(200))
         end
 
 
         self:_close(client)
+
+        log:print()
         ::continue::
     end
 end
 
 function App:_close(client)
     if client then
-        print("closing client")
+        log:push("Closing client")
         client:close()
     else
-        print("client is nil")
+        log:push("Client is nil")
     end
 end
 

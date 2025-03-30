@@ -70,4 +70,6 @@ app:get("/users/thomas/oui", function(c)
 end)
 
 
-app:start()
+app:start({
+    verbose = true
+})
