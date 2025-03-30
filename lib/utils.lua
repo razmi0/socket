@@ -1,5 +1,7 @@
 local inspect = require("inspect")
-local socket = require("socket")
+
+
+-- Colors for terminal ( not exported )
 
 local colors = {
     red = "\27[31m",
@@ -11,45 +13,94 @@ local colors = {
     reset = "\27[0m"
 }
 
--- local inspect = function(msg, obj)
---     local a = msg or ""
---     print(a, inspector(obj))
--- end
+local Colorize = {}
+Colorize.__index = Colorize
+
+function Colorize.new(active)
+    local instance = setmetatable({
+    }, Colorize)
+    instance._active = active
+    instance._colors = colors
+    return instance
+end
+
+function Colorize:colorize(text, color)
+    if self._active then
+        return self._colors[color] .. text .. self._colors.reset
+    end
+    return text
+end
+
+-- Inspect ( exported )
 
 local Inspect = {}
 Inspect.__index = Inspect
 
-function Inspect.new()
+---@param config? table<{trace: boolean, clean: boolean, color: boolean, verbose: boolean}>
+function Inspect.new(config)
     local instance = setmetatable({}, Inspect)
     instance._stack = {}
+    local _config = {
+        trace = true,
+        clean = true,
+        color = true,
+        verbose = false,
+    }
+    for k, v in pairs(config or {}) do
+        _config[k] = v
+    end
+    instance._config = _config
+    instance._C = Colorize.new(_config.color)
     return instance
 end
 
-function Inspect:push(obj)
-    local skip_lvls = 2 -- self call and push call does not print
-    local trace = debug.traceback(nil, skip_lvls)
-    local now = socket.gettime()
-    local seconds = math.floor(now)                     -- Get the integer part (full seconds)
-    local milliseconds = math.floor((now - seconds) * 1000) -- Get the milliseconds part
-    local timestamp = os.date("%H:%M:%S:") .. string.format("%03d", milliseconds)
-    table.insert(self._stack,
-        { timestamp, obj, self:_remove_line(trace, self:_count_lines(trace)) })
+function Inspect:setVerbose(flag)
+    self._config.verbose = flag
 end
 
-function Inspect:print(clean)
+function Inspect:push(obj, is_err)
+    local skip_lvls = 2 -- self call and push call does not print
+    local trace = debug.traceback(nil, skip_lvls)
+    local timestamp = os.date("%H:%M:%S:")
+
+    if self._config.trace then
+        table.insert(self._stack,
+            { timestamp, obj, self:_remove_line(trace, self:_count_lines(trace)), is_err })
+    else
+        table.insert(self._stack, { timestamp, obj, nil, is_err })
+    end
+end
+
+function Inspect:_add_new_line()
+    if self._config.trace then
+        return "\n"
+    end
+    return ""
+end
+
+function Inspect:print()
+    if not self._config.verbose then
+        return
+    end
     for _, obj in ipairs(self._stack) do
-        local time = obj[1]
-        local msg = obj[2]
-        local trace = obj[3]
+        local time = self._C:colorize(obj[1], "cyan") or ""
+        local msg = obj[2] or ""
+        local trace = obj[3] or ""
+        local is_err = obj[4] or false
 
-        print(
-            colors.cyan .. time .. colors.reset .. " : "
-            .. colors.yellow .. inspect(msg, { newline = '' }) .. colors.reset .. "\n"
-            .. colors.blue .. trace:sub(1, 15) .. colors.reset
-            .. "\t" .. trace:sub(16) .. "\n"
-        )
+        if is_err then
+            msg = self._C:colorize(inspect(msg, { newline = '' }), "red")
+        else
+            msg = self._C:colorize(inspect(msg, { newline = '' }), "yellow")
+        end
 
-        if clean then
+        local formatted_trace = self._C:colorize(trace:sub(1, 15), "blue") .. "\t" .. trace:sub(16)
+
+        local output = time .. " : " .. msg .. self:_add_new_line() .. formatted_trace .. self:_add_new_line()
+
+        print(output)
+
+        if self._config.clean then
             self._stack = {}
         end
     end
