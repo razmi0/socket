@@ -61,6 +61,8 @@ local default_response = {
 function Response.new(client, logger)
     local instance = setmetatable({}, Response)
 
+    instance.__logger = logger
+
     for key, value in pairs(default_response) do
         instance[key] = value
     end
@@ -77,6 +79,8 @@ function Response.new(client, logger)
     end
 
     instance:_build()
+
+
 
     return instance
 end

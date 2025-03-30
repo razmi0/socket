@@ -45,7 +45,6 @@ end
 
 ---@param server_config? ServerConfig
 function App:start(server_config)
-    log:push("Starting server")
     if server_config then
         self._host = server_config.host or self._host
         self._port = server_config.port or self._port
@@ -54,10 +53,10 @@ function App:start(server_config)
     end
     local server = assert(socket.bind(self._host, self._port), "Failed to bind server!")
     local ip, port = server:getsockname()
-    -- print("Listening on http://" .. ip .. ":" .. port)
 
     log:push("Starting loop server : " .. ip .. ":" .. port)
     log:print()
+
     self:_loop(server)
 end
 
@@ -71,7 +70,7 @@ function App:_loop(server)
 
         -- Handle accept errors
         if not client then
-            print("server:accept() error:", err)
+            self:log("server:accept() error:", err, true)
             goto continue
         end
 
@@ -82,9 +81,6 @@ function App:_loop(server)
             local req = Request.new(client, log)
             local res = Response.new(client, log)
             local ctx = Context.new(req, res)
-
-
-
 
             if not req or not res or not ctx then
                 log:push("Failed to initialize !")
