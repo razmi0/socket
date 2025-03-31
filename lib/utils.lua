@@ -78,10 +78,19 @@ function Inspect:_add_new_line()
     return ""
 end
 
-function Inspect:print()
+---@class PrintOptions
+---@field newline string? The newline character to use
+---@field indent string? The indent character to use
+
+---@param options? PrintOptions The options to use for the print function
+function Inspect:print(options)
     if not self._config.verbose then
         return
     end
+
+    local newline = options and options.newline or "\n"
+    local indent = options and options.indent or "  "
+
     for _, obj in ipairs(self._stack) do
         local time = self._C:colorize(obj[1], "cyan") or ""
         local msg = obj[2] or ""
@@ -89,9 +98,9 @@ function Inspect:print()
         local is_err = obj[4] or false
 
         if is_err then
-            msg = self._C:colorize(inspect(msg, { newline = '' }), "red")
+            msg = self._C:colorize(inspect(msg, { newline = newline, indent = indent }), "red")
         else
-            msg = self._C:colorize(inspect(msg, { newline = '' }), "yellow")
+            msg = self._C:colorize(inspect(msg, { newline = newline, indent = indent }), "yellow")
         end
 
         local formatted_trace = self._C:colorize(trace:sub(1, 15), "blue") .. "\t" .. trace:sub(16)
