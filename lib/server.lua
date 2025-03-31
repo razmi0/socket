@@ -31,11 +31,13 @@ end
 function App:get(path, callback)
     log:push("Registering GET " .. path)
     self._routes:_add_route("GET", path, callback)
+    return self
 end
 
 function App:post(path, callback)
     log:push("Registering POST " .. path)
     self._routes:_add_route("POST", path, callback)
+    return self
 end
 
 ---@class ServerConfig
@@ -55,6 +57,7 @@ function App:start(server_config)
     local ip, port = server:getsockname()
 
     log:push("Starting loop server : " .. ip .. ":" .. port)
+    log:push(self._routes)
     log:print()
 
     self:_loop(server)
@@ -74,10 +77,12 @@ function App:_loop(server)
             goto continue
         end
 
+
+
         log:push("Accepted client")
 
 
-        local req_ok, success, result = pcall(function()
+        local req_ok, res_ok = pcall(function()
             local req = Request.new(client, log)
             local res = Response.new(client, log)
             local ctx = Context.new(req, res)
@@ -112,9 +117,6 @@ function App:_loop(server)
                 log:push("No route handler found")
                 Response.new(client):setStatus(404):send()
             end
-
-
-            return true
         end)
 
         if not req_ok then
