@@ -1,5 +1,9 @@
 local cjson = require "cjson"
 local mime = require 'mimetypes'
+local File = require('lib/file')
+
+
+
 
 ---@class Context
 ---@field req Request The request object
@@ -15,6 +19,15 @@ local mime = require 'mimetypes'
 ---@field set fun(key: string, value: string): nil Set a key-value pair in the context
 ---@field get fun(key: string): string Get a key-value pair from the context
 ---@field new fun(request: Request, response: Response): Context Create a new context
+---@field header fun(key: string, value: string): Response Add a header to the response
+---@field body fun(body: string, status: number?, headers: table?): Response Set the body of the response
+---@field text fun(text: string): Response Set the body of the response to a text string
+---@field json fun(table: table): Response Set the body of the response to a JSON string
+---@field html fun(html: string): Response Set the body of the response to an HTML string
+---@field status fun(status: number): Response Set the status code of the response
+---@field serve fun(config: ServeStaticConfig): Response Serve a static file
+---@field redirect fun(url: string): Response Redirect to a URL
+
 
 local Context = {}
 Context.__index = Context
@@ -108,17 +121,37 @@ function Context:get(key)
     return self.kvSpace[key]
 end
 
-function Context:static(config)
-    local file = io.open(config.path, "r")
-    if not file then
-        error("Could not find file: " .. config.path)
+--------------------------------
+-- Serve Static Files
+--------------------------------
+
+
+
+
+---@class ServeStaticConfig
+---@field path string The path to the file to serve
+---@field root string The root directory to serve the file from
+
+---@param config ServeStaticConfig The configuration for the serve function
+---@return Response The response object
+function Context:serve(config)
+    local fileFinder = File.new(config.root)
+    local content = fileFinder:find(config.path)
+    if not content then
+        return self:notFound()
     end
     local mimeType = mime.guess(self.req.path)
     self.res:setContentType(mimeType)
     self.res:setStatus(200)
-    local content = file:read("*a")
     self.res:setBody(content)
-    file:close()
+    return self.res
+end
+
+---@param url string The URL to redirect to
+---@return Response The response object
+function Context:redirect(url)
+    self.res:setStatus(302)
+    self.res:addHeader("Location", url)
     return self.res
 end
 
