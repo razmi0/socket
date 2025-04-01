@@ -58,15 +58,13 @@ app:get("/chain",
     function(c, next)
         c:set("key-1", " wo")
         next()
-        local header_from_handler = c:get("handler-1")
-        c:header(header_from_handler, "done")
+        c:header(c:get("handler-1"), "done")
     end,
     -- Middleware 2
     function(c, next)
         c:set("key-2", "rld")
         next()
-        local header_from_handler = c:get("handler-2")
-        c:header(header_from_handler, "done")
+        c:header(c:get("handler-2"), "done")
     end,
     -- Handler
     function(c)
