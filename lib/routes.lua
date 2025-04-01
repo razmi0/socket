@@ -1,14 +1,12 @@
-local inspect = require("lib/utils")
-
 ---@class Routes
 ---@field new fun(self: Routes): Routes Create a new Routes instance
 ---@field _has_parameter fun(self: Routes, path: string): boolean Check if the path has parameters
----@field _add_route fun(self: Routes, method: string, path: string, handler: function): nil Add a route to the router
+---@field _add_route fun(self: Routes, method: string, path: string, handlers: table<function>): nil Add a route to the router
 ---@field _split_path fun(self: Routes, path: string): table Split the path into parts
 ---@field _build_url_trie fun(self: Routes, path: string): table Build the url trie
----@field find_linear fun(self: Routes, request: Request): function|nil Find a route handler with O(1) complexity by using a linear router
----@field find_tries fun(self: Routes, request: Request): function|nil Find a route handler with O(n) complexity by using a TrieRouter
----@field find fun(self: Routes, request: Request): function|nil Find a route handler
+---@field find_linear fun(self: Routes, request: Request): table<function>|nil Find an array of route handlers with O(1) complexity by using a linear router
+---@field find_tries fun(self: Routes, request: Request): table<function>|nil Find an array of route handlers with O(n) complexity by using a TrieRouter
+---@field find fun(self: Routes, request: Request): table<function>|nil Find an array of route handlers
 
 
 local Routes = {}
@@ -81,8 +79,8 @@ end
 -- Add a route to the router
 ---@param method string The HTTP method to add the route to
 ---@param path string The path to add the route to
----@param handler function The handler to add to the route
-function Routes:_add_route(method, path, handler)
+---@param handlers table<function> The handlers to add to the route
+function Routes:_add_route(method, path, handlers)
     if not self[method] then
         self[method] = {
             indexed = {},
@@ -91,11 +89,11 @@ function Routes:_add_route(method, path, handler)
     end
 
     if not self:_has_parameter(path) then
-        self[method].indexed[path] = handler
+        self[method].indexed[path] = handlers
     else
         local trie = self:_build_url_trie(path)
         table.insert(trie, {
-            handler = handler
+            handlers = handlers
         })
         table.insert(self[method].tries, trie)
     end
@@ -104,19 +102,16 @@ end
 -- Find a route handler with O(1) complexity by using a linear router
 -- The routes indexed does not have parameters
 ---@param request Request The request object
----@return function|nil The route handler function if found, nil otherwise
+---@return table<function>|nil The route handler function if found, nil otherwise
 function Routes:find_linear(request)
     -- the diference comparison in lua : "nil" ~= nil
-    local indexed = self[request.method].indexed[request.path]
-    if indexed then
-        return indexed
-    end
+    return self[request.method].indexed[request.path]
 end
 
 -- Find a route handler with O(n) complexity by using a TrieRouter
 -- The routes indexed have parameters
 ---@param request Request The request object
----@return function|nil The route handler function if found, nil otherwise
+---@return table<function>|nil The route handler function if found, nil otherwise
 function Routes:find_tries(request)
     local parts = {}
 
@@ -142,7 +137,7 @@ function Routes:find_tries(request)
                 for k, v in pairs(temp_params) do
                     request._params[k:gsub(":", "")] = v
                 end
-                return trie[1].handler
+                return trie[1].handlers
             else
                 current = current.next
             end
@@ -150,18 +145,59 @@ function Routes:find_tries(request)
     end
 end
 
+---@param request Request The request object
+---@return table<function>|nil The route handler function if found, nil otherwise
 function Routes:find(request)
-    local indexed = self:find_linear(request)
-    if indexed then
-        return indexed
+    local handlers = nil
+    handlers = self:find_linear(request)
+    if handlers then
+        return handlers
     end
 
-    local in_trie = self:find_tries(request)
-    if in_trie then
-        return in_trie
+    handlers = self:find_tries(request)
+    if handlers then
+        return handlers
     end
 
     return nil
+end
+
+---@alias ChainHandler fun(context: Context): Response
+---@alias MiddlewareHandler fun(context: Context, next: fun()): nil
+---@alias Chain table<MiddlewareHandler> | ChainHandler
+
+---@param chain Chain The handlers and middleware to run
+---@param context Context The context object
+---@return Response|nil
+function Routes:_run_chain(chain, context)
+    -- last index is the handler
+    -- others are middleware
+    local handler = chain[#chain]
+    local response = context.res
+
+    local function dispatch(i)
+        -- all middleware and handler are executed, we leave the execution flow
+        if i > #chain then return end
+        -- Execute final handler and store the response
+        if i == #chain then
+            response = handler(context)
+        else
+            -- Middleware execution with next control
+            local nextCalled = false
+            local function next()
+                if not nextCalled then
+                    nextCalled = true
+                    dispatch(i + 1)
+                end
+            end
+
+            -- Execute middleware and ignore its return value
+            chain[i](context, next)
+        end
+    end
+
+    dispatch(1)
+    return response
 end
 
 return Routes
