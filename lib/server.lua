@@ -38,9 +38,6 @@ function Server:start(server_config)
     local server = assert(socket.bind(self._host, self._port), "Failed to bind server!")
     local ip, port = server:getsockname()
 
-
-    self._app._log:push(self._app._routes)
-
     if self._log then
         self._log:push("Starting loop server : " .. ip .. ":" .. port)
         self._log:print()
