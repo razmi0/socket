@@ -32,68 +32,17 @@ function App:see_routes()
     if not self._log then
         return
     end
-
-    local output = {}
-    local methods = { "GET", "POST", "PUT", "DELETE" }
-    local divider = "================"
-
-    local separator = function(method)
-        return "\27[34m" .. divider .. method .. divider .. "\27[0m"
-    end
-
-    for method, routeData in pairs(self._routes) do
-        -- Only process if the method is one of our specified methods.
-        if table.concat(methods):find(method) then
-            table.insert(output, separator(method))
-            local indexed = routeData.indexed
-
-            -- First pass: determine the maximum length of the path strings.
-            local maxLen = 0
-            for path, _ in pairs(indexed) do
-                if #path > maxLen then
-                    maxLen = #path
-                end
-            end
-
-            -- Second pass: construct each line with padding.
-            for path, handlers in pairs(indexed) do
-                local functions = {}
-                for i, _ in ipairs(handlers) do
-                    if i == #handlers then
-                        table.insert(functions, "handler")
-                    else
-                        table.insert(functions, "middleware" .. i)
-                    end
-                end
-
-                -- Using string.format to pad the path to maxLen characters.
-                local line = string.format("    %-"
-                    .. maxLen .. "s : [ %s ]",
-                    path, table.concat(functions, ", "))
-                table.insert(output, line)
-            end
-        end
-        table.insert(output, separator(method))
-    end
-
-
-    self._log:push(table.concat(output, "\n"), { escape = true })
+    self._log:routes(self._routes)
 end
 
 function App:get(path, ...)
     local handlers = { ... }
-    if self._log then
-        self._log:push("Registering GET " .. path .. " with " .. #handlers .. " handlers")
-    end
     self._routes:_add_route("GET", path, handlers)
     return self
 end
 
 function App:post(path, ...)
     local handlers = { ... }
-    if self._log then
-        self._log:push("Registering POST " .. path .. " with " .. #handlers .. " handlers")
-    end
     self._routes:_add_route("POST", path, handlers)
     return self
 end

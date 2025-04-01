@@ -66,7 +66,7 @@ function Inspect:push(obj, options)
     local prefix = options and options.prefix or ""
     local is_err = options and options.is_err or false
     local escape = options and options.escape or false
-    local timestamp = os.date("%H:%M:%S:")
+    local timestamp = self:getTimestamp()
 
     if escape then
         table.insert(self._stack, { timestamp .. "\n", obj })
@@ -110,7 +110,7 @@ function Inspect:print(options)
     local indent = options and options.indent or "  "
 
     for _, obj in ipairs(self._stack) do
-        local time = self._C:colorize(obj[1], "cyan") or ""
+        local time = obj[1] or ""
         local prefix = obj[2] or ""
         local msg = obj[3] or ""
         local trace = obj[4] or ""
@@ -127,7 +127,7 @@ function Inspect:print(options)
         local formatted_trace = self._C:colorize(trace:sub(1, 15), "blue") .. "\t" .. trace:sub(16)
 
         local output = time ..
-            " " .. prefix .. " : " .. msg .. self:_add_new_line() .. formatted_trace .. self:_add_new_line()
+            " " .. prefix .. " " .. msg .. self:_add_new_line() .. formatted_trace .. self:_add_new_line()
 
         print(output)
 
@@ -152,6 +152,86 @@ function Inspect:_remove_line(stack_trace, line_number)
     end
     table.remove(lines, line_number)
     return table.concat(lines, "\n")
+end
+
+function Inspect:routes(routes)
+    local output = {}
+    local methods = { "GET", "POST", "PUT", "DELETE" }
+
+    local separator = function(method)
+        local divider = "================"
+        return "\27[34m" .. divider .. method .. divider .. "\27[0m"
+    end
+
+    local create_line = function(functions, path, maxLen)
+        -- Using string.format to pad the path to maxLen characters.
+        return string.format("    %-"
+            .. maxLen .. "s : [ %s ]",
+            path, table.concat(functions, ", ")
+        )
+    end
+
+    local handlers_to_array = function(handlers)
+        local functions = {}
+        for i, _ in ipairs(handlers) do
+            if i == #handlers then
+                table.insert(functions, "handler")
+            else
+                table.insert(functions, "middleware" .. i)
+            end
+        end
+        return functions
+    end
+
+
+    for method, routeData in pairs(routes) do
+        -- Only process if the method is one of our specified methods.
+        if table.concat(methods):find(method) then
+            table.insert(output, separator(method))
+            local indexed = routeData.indexed
+            local tries = routeData.tries
+
+            -- First pass: determine the maximum length of the path strings.
+            local maxLen = 0
+            for path, _ in pairs(indexed) do
+                if #path > maxLen then
+                    maxLen = #path
+                end
+            end
+
+            -- Second pass: construct each line with padding.
+            for path, handlers in pairs(indexed) do
+                local functions = handlers_to_array(handlers)
+                local line = create_line(functions, path, maxLen)
+                table.insert(output, line)
+            end
+
+            for _, try in ipairs(tries) do
+                local path = "/" .. try.value
+                local next = try.next
+                local handlers = try[1].handlers
+                local functions = handlers_to_array(handlers)
+
+
+                while true do
+                    path = path .. "/" .. next.value
+                    if next.done or next.value == nil then
+                        break
+                    end
+                    next = next.next
+                end
+                local line = create_line(functions, path, maxLen)
+                table.insert(output, line)
+            end
+        end
+        table.insert(output, separator(method))
+    end
+
+    table.insert(self._stack, { self:getTimestamp() .. "\n", table.concat(output, "\n") })
+end
+
+function Inspect:getTimestamp()
+    return self._C:colorize(os.date("%H:%M:%S"), "cyan")
 end
 
 ---@param config? table<{trace: boolean, clean: boolean, color: boolean, verbose: boolean}>
