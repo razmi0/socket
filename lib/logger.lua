@@ -58,21 +58,34 @@ end
 ---@class LogOptions
 ---@field prefix string? The prefix to use for the log
 ---@field is_err boolean? Whether the log is an error
+---@field escape boolean? Whether to escape the log
 
 ---@param obj table The object to log
 ---@param options? LogOptions The options to use for the log
 function Inspect:push(obj, options)
     local prefix = options and options.prefix or ""
     local is_err = options and options.is_err or false
-    local skip_lvls = 2 -- self call and push call are not printed
-    local trace = debug.traceback(nil, skip_lvls)
+    local escape = options and options.escape or false
     local timestamp = os.date("%H:%M:%S:")
 
+    if escape then
+        table.insert(self._stack, { timestamp .. "\n", obj })
+        return
+    end
+
+    local skip_lvls = 2 -- self call and push call are not printed
+    local trace = debug.traceback(nil, skip_lvls)
+
     if self._config.trace then
-        table.insert(self._stack,
-            { timestamp, prefix, obj, self:_remove_line(trace, self:_count_lines(trace)), is_err })
+        table.insert(
+            self._stack,
+            { timestamp, prefix, obj, self:_remove_line(trace, self:_count_lines(trace)), is_err }
+        )
     else
-        table.insert(self._stack, { timestamp, prefix, obj, nil, is_err })
+        table.insert(
+            self._stack,
+            { timestamp, prefix, obj, nil, is_err }
+        )
     end
 end
 
@@ -103,16 +116,18 @@ function Inspect:print(options)
         local trace = obj[4] or ""
         local is_err = obj[5] or false
 
-        if is_err then
-            msg = self._C:colorize(inspect(msg, { newline = newline, indent = indent }), "red")
-        else
-            msg = self._C:colorize(inspect(msg, { newline = newline, indent = indent }), "yellow")
+        if msg ~= "" then
+            if is_err then
+                msg = self._C:colorize(inspect(msg, { newline = newline, indent = indent }), "red")
+            else
+                msg = self._C:colorize(inspect(msg, { newline = newline, indent = indent }), "yellow")
+            end
         end
 
         local formatted_trace = self._C:colorize(trace:sub(1, 15), "blue") .. "\t" .. trace:sub(16)
 
         local output = time ..
-            " : " .. prefix .. " : " .. msg .. self:_add_new_line() .. formatted_trace .. self:_add_new_line()
+            " " .. prefix .. " : " .. msg .. self:_add_new_line() .. formatted_trace .. self:_add_new_line()
 
         print(output)
 
