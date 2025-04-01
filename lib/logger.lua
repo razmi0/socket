@@ -1,5 +1,5 @@
 local inspect = require("inspect")
-local Middleware = require("lib/middleware")
+local Debug_middleware = require("lib.debug-middleware")
 
 
 -- Colors for terminal ( not exported )
@@ -140,9 +140,9 @@ function Inspect:_remove_line(stack_trace, line_number)
 end
 
 ---@param config? table<{trace: boolean, clean: boolean, color: boolean, verbose: boolean}>
----@return Middleware The logger instance registered as a middleware
+---@return Debug_middleware The logger instance registered as a middleware
 local logger = function(config)
-    return Middleware.register("logger", Inspect.new(config))
+    return Debug_middleware.register("logger", Inspect.new(config))
 end
 
 return logger
