@@ -91,28 +91,29 @@ local context = {
 }
 
 local chain = {
-    function(context, next)
+    function(c, next)
         print("middleware start 1")
-        table.insert(context, "middleware 1")
+        table.insert(c, "middleware 1")
         next()
         print("middleware end 1")
     end,
-    function(context, next)
+    function(c, next)
         print("middleware start 2")
-        table.insert(context, "middleware 2")
+        table.insert(c, "middleware 2")
         next()
         print("middleware end 2")
     end,
-    function(context, next)
+    function(c, next)
         print("middleware start 3")
-        table.insert(context, "middleware 3")
+        table.insert(c, "middleware 3")
         next()
         print("middleware end 3")
+        c.res:setStatus(404)
     end,
-    function(context)
+    function(c)
         print("handler")
-        table.insert(context, "handler")
-        return context.res
+        table.insert(c, "handler")
+        return c.res
     end
 }
 
