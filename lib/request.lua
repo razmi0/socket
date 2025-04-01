@@ -1,5 +1,3 @@
-local Inspect = require("lib/utils")
-
 ---@class Request
 ---@field __client table The socket client instance
 ---@field _headers table<string, string> The headers of the request

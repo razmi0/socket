@@ -1,5 +1,3 @@
-local inspect = require("lib/utils")
-
 ---@class Response
 ---@field new fun(client: table): Response Create a new Response instance
 ---@field __current string The current built response string
@@ -20,6 +18,7 @@ local inspect = require("lib/utils")
 
 local Response = {}
 Response.__index = Response
+Response.__name = "Response"
 
 -- Static status code messages
 local STATUS_CODES = {
