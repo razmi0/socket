@@ -74,6 +74,39 @@ app:get("/chain",
     end
 )
 
+
+app:post("/users", function(c)
+    return c:json({
+        with_params = c.req:param()
+    })
+end)
+
+app:post("/users/:name/:id", function(c)
+    return c:json({
+        with_params = c.req:param()
+    })
+end)
+
+app:post("/users/:name/:id/edit", function(c)
+    return c:json({
+        with_params = c.req:param()
+    })
+end)
+
+app:put("/users/:name/:id/edit", function(c)
+    return c:json({
+        with_params = c.req:param()
+    })
+end)
+
+app:delete("/users/:name/:id/edit", function(c)
+    return c:json({
+        with_params = c.req:param()
+    })
+end)
+
+
+
 app:see_routes()
 
 Server.new(app):start()
