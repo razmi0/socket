@@ -1,75 +1,63 @@
+-- to much things in app class, need to split it, especially route execution
+
 local socket = require("socket")
-local Inspect = require("lib/utils")
-local Request = require("lib/request")
-local Response = require("lib/response")
-local Context = require("lib/context")
-local Routes = require("lib/routes")
 
-local log = Inspect.new({ trace = false })
 
----@class App
+---@class Server
 ---@field _host string The host address to bind the server to
 ---@field _port number The port number to bind the server to
----@field _routes Routes The routing table containing GET and POST route handlers
----@field start fun(self: App, base: table): nil Start the HTTP server and begin listening for connections
----@field get fun(self: App, path: string, callback: function): nil Register a GET route handler
----@field post fun(self: App, path: string, callback: function): nil Register a POST route handler
----@field put fun(self: App, path: string, callback: function): nil Register a PUT route handler
+---@field start fun(self: Server, base: table): nil Start the HTTP server and begin listening for connections
+---@field _app App The application instance
+---@field _log Inspect The logger instance middleware
 
-local App = {}
-App.__index = App
+local Server = {}
+Server.__index = Server
 
-function App.new()
-    log:push("Creating new App")
-    local instance = setmetatable({}, App)
+---@param app App
+function Server.new(app)
+    local instance = setmetatable({}, Server)
+    if app._log then
+        instance._log = app._log
+    end
     instance._host = arg[1] or "127.0.0.1"
     instance._port = tonumber(arg[2]) or 8080
-    instance._routes = Routes.new()
+    instance._app = app
     return instance
-end
-
-function App:get(path, callback)
-    log:push("Registering GET " .. path)
-    self._routes:_add_route("GET", path, callback)
-    return self
-end
-
-function App:post(path, callback)
-    log:push("Registering POST " .. path)
-    self._routes:_add_route("POST", path, callback)
-    return self
 end
 
 ---@class ServerConfig
 ---@field host?  string
 ---@field port? number
 ---@field verbose? boolean
-
 ---@param server_config? ServerConfig
-function App:start(server_config)
+function Server:start(server_config)
     if server_config then
         self._host = server_config.host or self._host
         self._port = server_config.port or self._port
-        local verbose = server_config.verbose ~= nil and server_config.verbose or false
-        log:setVerbose(verbose)
     end
     local server = assert(socket.bind(self._host, self._port), "Failed to bind server!")
     local ip, port = server:getsockname()
 
-    log:push("Starting loop server : " .. ip .. ":" .. port)
-    log:push(self._routes)
-    log:print()
+
+    self._app._log:push(self._app._routes)
+
+    if self._log then
+        self._log:push("Starting loop server : " .. ip .. ":" .. port)
+        self._log:print()
+    end
+
 
     self:_loop(server)
 end
 
-function App:_loop(server)
+function Server:_loop(server)
     while true do
+        --
         -- Blocking I/O: The program waits until the operation completes (e.g., waiting for a network response).
         local client, err = server:accept()
+
         --Timeouts: Prevents the program from hanging indefinitely by limiting how long an I/O operation can wait.
         client:settimeout(5)
-
 
         -- Handle accept errors
         if not client then
@@ -77,68 +65,33 @@ function App:_loop(server)
             goto continue
         end
 
-
-
-        log:push("Accepted client")
-
-
-        local req_ok, res_ok = pcall(function()
-            local req = Request.new(client, log)
-            local res = Response.new(client, log)
-            local ctx = Context.new(req, res)
-
-            if not req or not res or not ctx then
-                log:push("Failed to initialize !")
-                res:setStatus(400)
-                res:send()
-            end
-
-            local ok = req:_parse()
-            if not ok then
-                log:push("Failed to parse request !")
-                res:setStatus(400)
-                res:send()
-                return
-            end
-
-            -- Find the route handler
-            local route_handler = self._routes:find(req)
-            if route_handler then
-                log:push("Found route handler")
-                local handler_ok, handler_err = pcall(route_handler, ctx)
-                if not handler_ok then
-                    log:push("Handler error: " .. handler_err)
-                    Response.new(client):setStatus(500):send()
-                else
-                    log:push("Sending response")
-                    res:send()
-                end
-            else
-                log:push("No route handler found")
-                Response.new(client):setStatus(404):send()
-            end
-        end)
-
-        if not req_ok then
-            log:push("Server failed !")
-            Response.new(client):setStatus(500):send()
+        if self._log then
+            self._log:push("Accepted client")
         end
 
+        -- Run the app
+        self._app:_run(client)
 
+        -- Close the client
         self:_close(client)
 
-        log:print()
+        self._log:print()
+        --
         ::continue::
     end
 end
 
-function App:_close(client)
+function Server:_close(client)
     if client then
-        log:push("Closing client")
+        if self._log then
+            self._log:push("Closing client")
+        end
         client:close()
     else
-        log:push("Client is nil")
+        if self._log then
+            self._log:push("Client is nil")
+        end
     end
 end
 
-return App
+return Server
