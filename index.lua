@@ -75,4 +75,7 @@ app:get("/chain",
         return c:text("Hello" .. c:get("key-1") .. c:get("key-2")) -- Hello world
     end
 )
+
+app:see_routes()
+
 Server.new(app):start()
