@@ -35,6 +35,16 @@ function App:see_routes()
     self._log:routes(self._routes)
 end
 
+function App:use(middleware)
+    if middleware.identity == "logger" then
+        self:_setLogger(middleware.handler)
+    elseif type(middleware.handler) == "function" then
+        local x = pcall(middleware.handler, next)
+    end
+
+    return self
+end
+
 function App:get(path, ...)
     local handlers = { ... }
     self._routes:_add_route("GET", path, handlers)
@@ -47,13 +57,15 @@ function App:post(path, ...)
     return self
 end
 
-function App:use(middleware)
-    if middleware.identity == "logger" then
-        self:_setLogger(middleware.handler)
-    elseif type(middleware.handler) == "function" then
-        local x = pcall(middleware.handler, next)
-    end
+function App:put(path, ...)
+    local handlers = { ... }
+    self._routes:_add_route("PUT", path, handlers)
+    return self
+end
 
+function App:delete(path, ...)
+    local handlers = { ... }
+    self._routes:_add_route("DELETE", path, handlers)
     return self
 end
 
