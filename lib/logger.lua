@@ -11,6 +11,8 @@ local colors = {
     blue = "\27[34m",
     magenta = "\27[35m",
     cyan = "\27[36m",
+    dark_grey = "\27[90m",
+    light_grey = "\27[37m",
     reset = "\27[0m"
 }
 
@@ -160,12 +162,12 @@ function Inspect:routes(routes)
 
     local separator = function(method)
         local divider = "================"
-        return "\27[34m" .. divider .. method .. divider .. "\27[0m"
+        return self._C:colorize(method, "light_grey")
     end
 
     local create_line = function(functions, path, maxLen)
         -- Using string.format to pad the path to maxLen characters.
-        return string.format("    %-"
+        return string.format("|    %-"
             .. maxLen .. "s : [ %s ]",
             path, table.concat(functions, ", ")
         )
@@ -184,47 +186,83 @@ function Inspect:routes(routes)
     end
 
 
+    -- Helper to build the full path for a 'try' route.
+    local function build_full_try_path(try)
+        local path = "/" .. try.value
+        local next = try.next
+        while true do
+            path = path .. "/" .. next.value
+            if next.done or next.value == nil then
+                break
+            end
+            next = next.next
+        end
+        return path
+    end
+
+    -- Helper to calculate the maximum length of all paths.
+    local function calculate_max_length(indexed, tries)
+        local maxLen = 0
+        for path, _ in pairs(indexed) do
+            if #path > maxLen then
+                maxLen = #path
+            end
+        end
+        for _, try in ipairs(tries) do
+            local tryPath = build_full_try_path(try)
+            if #tryPath > maxLen then
+                maxLen = #tryPath
+            end
+        end
+        return maxLen
+    end
+
+    -- Helper to process indexed routes.
+    local function process_indexed(indexed, maxLen)
+        local output = {}
+        for path, handlers in pairs(indexed) do
+            local functions = handlers_to_array(handlers)
+            local line = create_line(functions, path, maxLen)
+            table.insert(output, line)
+        end
+        return output
+    end
+
+    -- Helper to process try routes.
+    local function process_tries(tries, maxLen)
+        local output = {}
+        for _, try in ipairs(tries) do
+            local path = build_full_try_path(try)
+            local handlers = try[1].handlers
+            local functions = handlers_to_array(handlers)
+            local line = create_line(functions, path, maxLen)
+            table.insert(output, line)
+        end
+        return output
+    end
+
     for method, routeData in pairs(routes) do
         -- Only process if the method is one of our specified methods.
+        local total_method_routes = 0
         if table.concat(methods):find(method) then
-            table.insert(output, separator(method))
             local indexed = routeData.indexed
             local tries = routeData.tries
 
-            -- First pass: determine the maximum length of the path strings.
-            local maxLen = 0
-            for path, _ in pairs(indexed) do
-                if #path > maxLen then
-                    maxLen = #path
-                end
-            end
 
-            -- Second pass: construct each line with padding.
-            for path, handlers in pairs(indexed) do
-                local functions = handlers_to_array(handlers)
-                local line = create_line(functions, path, maxLen)
+            local maxLen = calculate_max_length(indexed, tries)
+
+            -- Process both indexed and try routes.
+            local indexedOutput = process_indexed(indexed, maxLen)
+            local triesOutput = process_tries(tries, maxLen)
+            total_method_routes = #indexedOutput + #triesOutput
+            table.insert(output, separator(method .. " (" .. total_method_routes .. ")"))
+            for _, line in ipairs(indexedOutput) do
                 table.insert(output, line)
             end
-
-            for _, try in ipairs(tries) do
-                local path = "/" .. try.value
-                local next = try.next
-                local handlers = try[1].handlers
-                local functions = handlers_to_array(handlers)
-
-
-                while true do
-                    path = path .. "/" .. next.value
-                    if next.done or next.value == nil then
-                        break
-                    end
-                    next = next.next
-                end
-                local line = create_line(functions, path, maxLen)
+            for _, line in ipairs(triesOutput) do
                 table.insert(output, line)
             end
         end
-        table.insert(output, separator(method))
     end
 
     table.insert(self._stack, { self:getTimestamp() .. "\n", table.concat(output, "\n") })
