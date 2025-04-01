@@ -66,18 +66,32 @@ echo "====================="
 # # Test GET :8080
 make_request "GET" "http://localhost:8080"
 
-# # Test GET :8080/json
+# Test GET :8080/json
 make_request "GET" "http://localhost:8080/json"
 
 # Test GET :8080/json with query parameters
 make_request "GET" "http://localhost:8080/query?foo=bar&baz=foo"
 
-# Test GET :8080/json/:id/:name
+# Test GET :8080/chain
+make_request "GET" "http://localhost:8080/chain"
+
+# Test GET :8080/users/:name/:id
 make_request "GET" "http://localhost:8080/users/thomas/oui"
 
-# Test GET :8080/json/forwhat/:param1
-make_request "GET" "http://localhost:8080/users/john/123"
+# Test GET :8080/users/:name/:id/edit
+make_request "GET" "http://localhost:8080/users/thomas/oui/edit"
+
+# Test POST :8080/users
+make_request "POST" "http://localhost:8080/users"
+
+# Test POST :8080/users/:name/:id
+make_request "POST" "http://localhost:8080/users/thomas/oui"
+
+# Test PUT :8080/users/:name/:id/edit
+make_request "PUT" "http://localhost:8080/users/thomas/oui/edit"
+
+# Test DELETE :8080/users/:name/:id/edit
+make_request "DELETE" "http://localhost:8080/users/thomas/oui/edit"
+
 
 echo -e "\n${BLUE}All tests completed!${NC}"
-
-
