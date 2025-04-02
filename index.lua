@@ -70,38 +70,22 @@ app:get("/chain",
     function(c)
         c:set("handler-1", "X-Middleware-1")
         c:set("handler-2", "X-Middleware-2")
-        return c:text("Hello" .. c:get("key-1") .. c:get("key-2")) -- Hello world
+        return c:json({
+            json = "Hello" .. c:get("key-1") .. c:get("key-2")
+        })
     end
 )
 
 
 app:post("/users", function(c)
     return c:json({
-        with_params = c.req:param()
+        post_without_params = "ok"
     })
 end)
 
 app:post("/users/:name/:id", function(c)
     return c:json({
-        with_params = c.req:param()
-    })
-end)
-
-app:post("/users/:name/:id/edit", function(c)
-    return c:json({
-        with_params = c.req:param()
-    })
-end)
-
-app:put("/users/:name/:id/edit", function(c)
-    return c:json({
-        with_params = c.req:param()
-    })
-end)
-
-app:delete("/users/:name/:id/edit", function(c)
-    return c:json({
-        with_params = c.req:param()
+        post_with_params = "ok"
     })
 end)
 
