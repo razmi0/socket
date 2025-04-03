@@ -1,4 +1,5 @@
 ---@class Routes
+---@field _routes table<string> The routes
 ---@field new fun(self: Routes): Routes Create a new Routes instance
 ---@field _has_parameter fun(self: Routes, path: string): boolean Check if the path has parameters
 ---@field _add_route fun(self: Routes, method: string, path: string, handlers: table<function>): nil Add a route to the router
@@ -16,6 +17,7 @@ Routes.__index = Routes
 ---@return Routes The new Routes instance
 function Routes.new()
     local instance = setmetatable({}, Routes)
+    instance._routes = {}
     return instance
 end
 
@@ -81,6 +83,11 @@ end
 ---@param path string The path to add the route to
 ---@param handlers table<function> The handlers to add to the route
 function Routes:_add_route(method, path, handlers)
+    table.insert(self._routes, method .. "@" .. path)
+
+    local str = "%/:%w+"
+
+
     if not self[method] then
         self[method] = {
             indexed = {},
@@ -148,6 +155,11 @@ end
 ---@param request Request The request object
 ---@return table<function>|nil The route handler function if found, nil otherwise
 function Routes:find(request)
+    -- GET@/users/:name/:id"
+
+
+
+
     local handlers = nil
     handlers = self:find_linear(request)
     if handlers then

@@ -1,6 +1,6 @@
 local Server = require("lib/server")
 local App = require("lib/app")
-local logger = require("lib/logger")
+-- local logger = require("lib/logger")
 
 local test_payload = {
     some_object = {
@@ -12,7 +12,7 @@ local test_payload = {
 local app = App.new()
 
 -- Registering logger middleware
-app:use(logger({ trace = false, verbose = true }))
+-- app:use(logger({ trace = false, verbose = true }))
 
 -- Registering static files
 app
@@ -30,6 +30,35 @@ app
 app:get("/query", function(c)
     local query = c.req:query()
     return c:json({ query = query })
+end)
+
+function HeavyComputation(size)
+    local numbers = {}
+    for i = 1, size do
+        table.insert(numbers, i)
+    end
+    local transformed = {}
+    for _, n in ipairs(numbers) do
+        table.insert(transformed, math.sqrt(n) * (n ^ 1.5) - math.log(n + 1))
+    end
+    local filtered = {}
+    for _, n in ipairs(transformed) do
+        if n % 2 ~= 0 then
+            table.insert(filtered, n)
+        end
+    end
+    local sum = 0
+    for _, val in ipairs(filtered) do
+        sum = sum + val
+    end
+    return sum
+end
+
+app:get("/heavy", function(c)
+    local data = HeavyComputation(100000)
+    return c:json({
+        data = data
+    })
 end)
 
 -- Registering json handler
@@ -93,4 +122,6 @@ end)
 
 app:see_routes()
 
-Server.new(app):start()
+Server.new(app):start({
+    port = 3000
+})

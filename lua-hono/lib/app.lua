@@ -76,14 +76,18 @@ function App:_run(client)
         local ctx = Context.new(req, res)
 
         if not req or not res or not ctx then
-            self._log:push("Failed to initialize !")
+            if self._log then
+                self._log:push("Failed to initialize !")
+            end
             res:setStatus(400)
             res:send()
         end
 
         local ok = req:_parse()
         if not ok then
-            self._log:push("Failed to parse request !")
+            if self._log then
+                self._log:push("Failed to parse request !")
+            end
             res:setStatus(400)
             res:send()
             return
@@ -93,24 +97,38 @@ function App:_run(client)
         -- Find the route handler
         local route_handlers = self._routes:find(req)
         if route_handlers then
-            self._log:push("Found route")
+            if self._log then
+                self._log:push("Found route")
+            end
             local handler_response = self._routes:_run_chain(route_handlers, ctx)
             if not handler_response then
-                self._log:push(handler_response, { is_err = true, prefix = "Handler error" })
+                if self._log then
+                    self._log:push(handler_response, { is_err = true, prefix = "Handler error" })
+                end
                 Response.new(client):setStatus(500):send()
             else
-                self._log:push("Sending response")
+                if self._log then
+                    self._log:push("Sending response")
+                end
                 handler_response:send()
             end
         else
-            self._log:push("No route handler found", { is_err = true, prefix = "Route error" })
+            if self._log then
+                self._log:push("No route handler found", { is_err = true, prefix = "Route error" })
+            end
             Response.new(client):setStatus(404):send()
         end
     end)
 
     if not req_ok then
-        self._log:push(res_err, { is_err = true, prefix = "Server error" })
+        if self._log then
+            self._log:push(res_err, { is_err = true, prefix = "Server error" })
+        end
         Response.new(client):setStatus(500):send()
+    end
+
+    if self._log then
+        self._log:push(self._routes._routes)
     end
 end
 

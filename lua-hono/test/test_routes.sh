@@ -63,29 +63,29 @@ make_request() {
 echo -e "${BLUE}Starting API tests...${NC}"
 echo "====================="
 
-# # Test GET :8080
-make_request "GET" "http://localhost:8080"
+# # Test GET :3000
+make_request "GET" "http://localhost:3000"
 
-# Test GET :8080/json
-make_request "GET" "http://localhost:8080/json"
+# Test GET :3000/json
+make_request "GET" "http://localhost:3000/json"
 
-# Test GET :8080/json with query parameters
-make_request "GET" "http://localhost:8080/query?foo=bar&baz=foo"
+# Test GET :3000/json with query parameters
+make_request "GET" "http://localhost:3000/query?foo=bar&baz=foo"
 
-# Test GET :8080/chain
-make_request "GET" "http://localhost:8080/chain"
+# Test GET :3000/chain
+make_request "GET" "http://localhost:3000/chain"
 
-# Test GET :8080/users/thomas/oui
-make_request "GET" "http://localhost:8080/users/thomas/oui"
+# Test GET :3000/users/thomas/oui
+make_request "GET" "http://localhost:3000/users/thomas/oui"
 
-# Test GET :8080/users/:name/:id
-make_request "GET" "http://localhost:8080/users/me/1"
+# Test GET :3000/users/:name/:id
+make_request "GET" "http://localhost:3000/users/me/1"
 
-# Test POST :8080/users
-make_request "POST" "http://localhost:8080/users"
+# Test POST :3000/users
+make_request "POST" "http://localhost:3000/users"
 
-# Test POST :8080/users/:name/:id
-make_request "POST" "http://localhost:8080/users/thomas/oui"
+# Test POST :3000/users/:name/:id
+make_request "POST" "http://localhost:3000/users/thomas/oui"
 
 
 echo -e "\n${BLUE}All tests completed!${NC}"

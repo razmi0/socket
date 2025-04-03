@@ -19,7 +19,7 @@ function Server.new(app)
     if app._log then
         instance._log = app._log
     end
-    instance._host = arg[1] or "127.0.0.1"
+    instance._host = arg[1] or "localhost"
     instance._port = tonumber(arg[2]) or 8080
     instance._app = app
     return instance
@@ -43,6 +43,9 @@ function Server:start(server_config)
         self._log:print()
     end
 
+    if not self._log then
+        print("\27[37mLuaSocket server listening : \27[0m" .. ip .. ":" .. port)
+    end
 
     self:_loop(server)
 end
@@ -72,8 +75,10 @@ function Server:_loop(server)
         -- Close the client
         self:_close(client)
 
-        self._log:print()
-        --
+        if self._log then
+            self._log:print()
+        end
+
         ::continue::
     end
 end
