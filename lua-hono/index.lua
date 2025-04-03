@@ -55,7 +55,7 @@ function HeavyComputation(size)
 end
 
 app:get("/heavy", function(c)
-    local data = HeavyComputation(100000)
+    local data = HeavyComputation(300000)
     return c:json({
         data = data
     })

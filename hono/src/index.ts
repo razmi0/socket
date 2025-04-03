@@ -18,7 +18,7 @@ function heavyComputation(size: number) {
 }
 
 app.get("/heavy", (c) => {
-    const result = heavyComputation(100000);
+    const result = heavyComputation(300000);
     return c.json({
         data: result,
     });
@@ -30,6 +30,6 @@ serve(
         port: 3000,
     },
     (info) => {
-        console.log(`Server is running on http://localhost:${info.port} | ${info.address} | ${info.family}`);
+        console.log(`Honojs - Server is running on http://localhost:${info.port} | ${info.address} | ${info.family}`);
     }
 );
