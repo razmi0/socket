@@ -52,15 +52,10 @@ To see the results in browser :
 open benchmark/results/hono-lua/plot.html
 ```
 
-## Usage
-
 ## Observation
 
 **Latency-Lua = Latency-Hono \* 2 :**
 
 for a 10ms increase in hono js, there's a 20ms increase in hono lua
+
 honojs async I/O operations (Concurrent Operation) are outperformming sync flow of lua ( Sequential Operation ) and scale better.
-
-```
-
-```
