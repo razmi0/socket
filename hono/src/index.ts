@@ -24,6 +24,8 @@ app.get("/heavy", (c) => {
     });
 });
 
+app.get("/api/:param?{[0-9]+}/cat", (c) => c.json({ param: c.req.param("param") }));
+
 serve(
     {
         fetch: app.fetch,
