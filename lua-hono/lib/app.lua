@@ -1,16 +1,16 @@
 local Request = require("lib/request")
 local Response = require("lib/response")
 local Context = require("lib/context")
-local Routes = require("lib/routes")
+local Router = require("lib/router")
 
 
 ---@class App
----@field _log Inspect
----@field _routes Routes
+---@field _log table
+---@field _router Router
 ---@field get fun(self: App, path: string, callback: function): App
 ---@field post fun(self: App, path: string, callback: function): App
 ---@field new fun(self: App): App
----@field _setLogger fun(self: App, log: Inspect): nil
+---@field _setLogger fun(self: App, log: table): nil
 ---@field _run fun(self: App, client: Client): nil
 ---@field use fun(self: App, middleware: function): App
 
@@ -19,7 +19,7 @@ App.__index = App
 
 function App.new()
     local instance = setmetatable({}, App)
-    instance._routes = Routes.new()
+    instance._router = Router.new()
     return instance
 end
 
@@ -32,7 +32,7 @@ function App:see_routes()
     if not self._log then
         return
     end
-    self._log:routes(self._routes)
+    self._log:routes(self._router)
 end
 
 function App:use(middleware)
@@ -47,25 +47,25 @@ end
 
 function App:get(path, ...)
     local handlers = { ... }
-    self._routes:_add_route("GET", path, handlers)
+    self._router:_register("GET", path, handlers)
     return self
 end
 
 function App:post(path, ...)
     local handlers = { ... }
-    self._routes:_add_route("POST", path, handlers)
+    self._router:_register("POST", path, handlers)
     return self
 end
 
 function App:put(path, ...)
     local handlers = { ... }
-    self._routes:_add_route("PUT", path, handlers)
+    self._router:_register("PUT", path, handlers)
     return self
 end
 
 function App:delete(path, ...)
     local handlers = { ... }
-    self._routes:_add_route("DELETE", path, handlers)
+    self._router:_register("DELETE", path, handlers)
     return self
 end
 
@@ -95,12 +95,12 @@ function App:_run(client)
 
 
         -- Find the route handler
-        local route_handlers = self._routes:find(req)
+        local route_handlers = self._router:find(req)
         if route_handlers then
             if self._log then
                 self._log:push("Found route")
             end
-            local handler_response = self._routes:_run_chain(route_handlers, ctx)
+            local handler_response = self._router:_run_chain(route_handlers, ctx)
             if not handler_response then
                 if self._log then
                     self._log:push(handler_response, { is_err = true, prefix = "Handler error" })
@@ -128,7 +128,7 @@ function App:_run(client)
     end
 
     if self._log then
-        self._log:push(self._routes._routes)
+        self._log:push(self._router._routes)
     end
 end
 

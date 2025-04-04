@@ -1,34 +1,11 @@
----@class Routes
----@field _routes table<string> The routes
----@field new fun(self: Routes): Routes Create a new Routes instance
----@field _has_parameter fun(self: Routes, path: string): boolean Check if the path has parameters
----@field _add_route fun(self: Routes, method: string, path: string, handlers: table<function>): nil Add a route to the router
----@field _split_path fun(self: Routes, path: string): table Split the path into parts
----@field _build_url_trie fun(self: Routes, path: string): table Build the url trie
----@field find_linear fun(self: Routes, request: Request): table<function>|nil Find an array of route handlers with O(1) complexity by using a linear router
----@field find_tries fun(self: Routes, request: Request): table<function>|nil Find an array of route handlers with O(n) complexity by using a TrieRouter
----@field find fun(self: Routes, request: Request): table<function>|nil Find an array of route handlers
-
-
-local Routes = {}
-Routes.__index = Routes
-
--- Create a new Routes instance
----@return Routes The new Routes instance
-function Routes.new()
-    local instance = setmetatable({}, Routes)
-    instance._routes = {}
-    return instance
-end
-
 -- Check if the path has parameters
 ---@param path string The path to check
 ---@return boolean True if the path has parameters, false otherwise
-function Routes:_has_parameter(path)
+local has_param = function(path)
     return path:find(":") ~= nil
 end
 
-function Routes:_split_path(path)
+local split_path = function(path)
     local parts = {}
     for part in path:gmatch("[^/]+") do
         table.insert(parts, part)
@@ -36,24 +13,35 @@ function Routes:_split_path(path)
     return parts
 end
 
+---@class Router
+---@field _routes table<string> The routes
+---@field new fun(self: Router): Router Create a new Router instance
+---@field _register fun(self: Router, method: string, path: string, handlers: table<function>): nil Add a route to the router
+---@field _build_url_trie fun(self: Router, path: string): table Build the url trie
+---@field find_linear fun(self: Router, request: Request): table<function>|nil Find an array of route handlers with O(1) complexity by using a linear router
+---@field find_tries fun(self: Router, request: Request): table<function>|nil Find an array of route handlers with O(n) complexity by using a TrieRouter
+---@field find fun(self: Router, request: Request): table<function>|nil Find an array of route handlers
+
+
+local Router = {}
+Router.__index = Router
+
+-- Create a new Router instance
+---@return Router The new Router instance
+function Router.new()
+    local instance = setmetatable({}, Router)
+    instance._routes = {}
+    return instance
+end
+
+---@class Trie
+
 -- Extract parameters from a path
 ---@param path string The path to extract parameters from
 ---@return table The parameters extracted from the path
--- example: /users/:id
--- will return :
--- {
---     value = "users",
---     is_param = false,
---     done = false,
---     next = {
---         value = "id",
---         is_param = true,
---         done = true,
---     }
--- }
-function Routes:_build_url_trie(path)
+local make_trie = function(path)
     local trie = {}
-    local parts = self:_split_path(path)
+    local parts = split_path(path)
 
     -- Create the trie structure
     local current = trie
@@ -82,11 +70,8 @@ end
 ---@param method string The HTTP method to add the route to
 ---@param path string The path to add the route to
 ---@param handlers table<function> The handlers to add to the route
-function Routes:_add_route(method, path, handlers)
+function Router:_register(method, path, handlers)
     table.insert(self._routes, method .. "@" .. path)
-
-    local str = "%/:%w+"
-
 
     if not self[method] then
         self[method] = {
@@ -95,10 +80,10 @@ function Routes:_add_route(method, path, handlers)
         }
     end
 
-    if not self:_has_parameter(path) then
+    if not has_param(path) then
         self[method].indexed[path] = handlers
     else
-        local trie = self:_build_url_trie(path)
+        local trie = make_trie(path)
         table.insert(trie, {
             handlers = handlers
         })
@@ -110,7 +95,7 @@ end
 -- The routes indexed does not have parameters
 ---@param request Request The request object
 ---@return table<function>|nil The route handler function if found, nil otherwise
-function Routes:find_linear(request)
+function Router:find_linear(request)
     -- the diference comparison in lua : "nil" ~= nil
     return self[request.method].indexed[request.path]
 end
@@ -119,7 +104,7 @@ end
 -- The routes indexed have parameters
 ---@param request Request The request object
 ---@return table<function>|nil The route handler function if found, nil otherwise
-function Routes:find_tries(request)
+function Router:find_tries(request)
     local parts = {}
 
     for part in request.path:gmatch("[^/]+") do
@@ -154,11 +139,8 @@ end
 
 ---@param request Request The request object
 ---@return table<function>|nil The route handler function if found, nil otherwise
-function Routes:find(request)
+function Router:find(request)
     -- GET@/users/:name/:id"
-
-
-
 
     local handlers = nil
     handlers = self:find_linear(request)
@@ -181,7 +163,7 @@ end
 ---@param chain Chain The handlers and middleware to run
 ---@param context Context The context object
 ---@return Response|nil
-function Routes:_run_chain(chain, context)
+function Router:_run_chain(chain, context)
     -- last index is the handler
     -- others are middleware
     local handler = chain[#chain]
@@ -212,4 +194,4 @@ function Routes:_run_chain(chain, context)
     return response
 end
 
-return Routes
+return Router
