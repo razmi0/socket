@@ -11,6 +11,13 @@ local test_payload = {
 
 local app = App.new()
 
+
+
+
+
+
+
+
 -- Registering logger middleware
 -- app:use(logger({ trace = false, verbose = true }))
 
@@ -25,6 +32,8 @@ app
     :get("/index.css", function(c)
         return c:serve({ path = "./public/index.css" })
     end)
+
+
 
 -- Registering query handler
 app:get("/query", function(c)
@@ -66,6 +75,8 @@ app:get("/json", function(c)
     return c:json({ json = test_payload })
 end)
 
+
+
 -- Registering path with params
 app:get("/users/:name/:id", function(c)
     return c:json({
@@ -106,17 +117,57 @@ app:get("/chain",
 )
 
 
-app:post("/users", function(c)
-    return c:json({
-        post_without_params = "ok"
-    })
-end)
+
+
+
+-- app:post("/users", function(c)
+--     return c:json({
+--         post_without_params = "ok"
+--     })
+-- end)
 
 app:post("/users/:name/:id", function(c)
     return c:json({
         post_with_params = "ok"
     })
 end)
+
+
+
+
+
+
+app:get("/foo", function(c) return c:text("foo") end)
+
+
+-- fallback
+app:all("*", function(c) return c:text("common") end)
+
+-- app:get("/users", function(c)
+--     return c:json({
+--         get = "ok"
+--     })
+-- end)
+
+
+------
+---
+---
+--- TEST of ALL
+--- GET has priority over ALL
+---
+---
+-- app:get("*", function(c)
+--     return c:json({
+--         data = "app:get " .. c.req.method
+--     })
+-- end)
+
+-- app:all("*", function(c)
+--     return c:json({
+--         data = "app:all " .. c.req.method
+--     })
+-- end)
 
 
 
