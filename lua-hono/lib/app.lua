@@ -81,6 +81,7 @@ function App:_run(client)
             end
             res:setStatus(400)
             res:send()
+            return
         end
 
         local ok = req:_parse()
@@ -95,28 +96,50 @@ function App:_run(client)
 
 
         -- Find the route handler
-        local route_handlers = self._router:find(req)
-        if route_handlers then
+        local handlers, found_path, params = self._router:_match(req.method, req.path)
+
+        -- Reference params in Request & Context ( default/reset to {} )
+        req._params = params
+
+        -- Not found case
+        if not found_path then
             if self._log then
-                self._log:push("Found route")
+                self._log:push("Not found", { is_err = true })
             end
-            local handler_response = self._router:_run_chain(route_handlers, ctx)
-            if not handler_response then
-                if self._log then
-                    self._log:push(handler_response, { is_err = true, prefix = "Handler error" })
-                end
-                Response.new(client):setStatus(500):send()
-            else
-                if self._log then
-                    self._log:push("Sending response")
-                end
-                handler_response:send()
+            res:setStatus(404)
+            res:send()
+            return
+        end
+
+        -- Wrong methods (found path but not handlers)
+        if not handlers then
+            if self._log then
+                self._log:push("Method not allowed", { is_err = true })
             end
+            res:setStatus(405)
+            res:send()
+            return
+        end
+
+        -- We found a route with user callbacks
+        if self._log then
+            self._log:push("Found route")
+        end
+
+
+        local handler_response = self._router:_run_route(handlers, ctx)
+
+
+        if not handler_response then
+            if self._log then
+                self._log:push(handler_response, { is_err = true, prefix = "Handler error" })
+            end
+            Response.new(client):setStatus(500):send()
         else
             if self._log then
-                self._log:push("No route handler found", { is_err = true, prefix = "Route error" })
+                self._log:push("Sending response")
             end
-            Response.new(client):setStatus(404):send()
+            handler_response:send()
         end
     end)
 
@@ -127,22 +150,9 @@ function App:_run(client)
         Response.new(client):setStatus(500):send()
     end
 
-    if self._log then
-        self._log:push(self._router._routes)
-    end
+    -- if self._log then
+    --     self._log:push(self._router._routes)
+    -- end
 end
 
 return App
-
-
--- {
---     indexed = {
---       ["/"] = { "<function 1>" },
---       ["/chain"] = { "<function 2>", "<function 3>", "<function 4>" },
---       ["/index.css"] = { "<function 5>" },
---       ["/index.js"] = { "<function 6>" },
---       ["/json"] = { "<function 7>" },
---       ["/query"] = { "<function 8>" },
---       ["/users/thomas/oui"] = { "<function 9>"
---     }
--- }
