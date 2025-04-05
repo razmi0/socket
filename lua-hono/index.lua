@@ -1,6 +1,6 @@
 local Server = require("lib/server")
 local App = require("lib/app")
--- local logger = require("lib/logger")
+local logger = require("lib/logger")
 
 local test_payload = {
     some_object = {
@@ -12,7 +12,7 @@ local test_payload = {
 local app = App.new()
 
 -- Registering logger middleware
--- app:use(logger({ trace = false, verbose = true }))
+app:use(logger({ trace = false, verbose = true }))
 
 -- Registering static files
 app
