@@ -2,6 +2,7 @@ local Request = require("lib/request")
 local Response = require("lib/response")
 local Context = require("lib/context")
 local Router = require("lib/router")
+local inspect = require("inspect")
 
 
 ---@class App
@@ -29,43 +30,47 @@ end
 
 -- See the routes in json format
 function App:see_routes()
-    if not self._log then
-        return
-    end
-    self._log:routes(self._router)
+    -- if not self._log then
+    --     return
+    -- end
+    -- self._log:routes(self._router)
+
+    print(inspect(self._router.routes))
 end
 
-function App:use(middleware)
-    if middleware.identity == "logger" then
-        self:_setLogger(middleware.handler)
-    elseif type(middleware.handler) == "function" then
-        local x = pcall(middleware.handler, next)
-    end
-
+function App:use(path, ...)
+    local middlewares = { ... }
+    self._router:_add_route("USE", path, middlewares)
     return self
 end
 
 function App:get(path, ...)
     local handlers = { ... }
-    self._router:_register("GET", path, handlers)
+    self._router:_add_route("GET", path, handlers)
     return self
 end
 
 function App:post(path, ...)
     local handlers = { ... }
-    self._router:_register("POST", path, handlers)
+    self._router:_add_route("POST", path, handlers)
     return self
 end
 
 function App:put(path, ...)
     local handlers = { ... }
-    self._router:_register("PUT", path, handlers)
+    self._router:_add_route("PUT", path, handlers)
     return self
 end
 
 function App:delete(path, ...)
     local handlers = { ... }
-    self._router:_register("DELETE", path, handlers)
+    self._router:_add_route("DELETE", path, handlers)
+    return self
+end
+
+function App:all(path, ...)
+    local handlers = { ... }
+    self._router:_add_route("ALL", path, handlers)
     return self
 end
 
