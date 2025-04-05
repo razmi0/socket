@@ -1,5 +1,8 @@
 console.log("Hello, world!");
 
+const HOST = "localhost";
+const PORT = 3000;
+
 const routes = [
     {
         method: "GET",
@@ -55,7 +58,7 @@ const divsContainer = document.querySelector("#divs-container");
 routes.forEach((route) => {
     let status = 200;
     let statusMsg = "";
-    fetch(`http://localhost:8080${route.path}`, {
+    fetch(`http://${HOST}:${PORT}${route.path}`, {
         method: route.method,
     })
         .then((res) => {
