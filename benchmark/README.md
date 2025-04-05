@@ -6,7 +6,7 @@ results are outputed to benchmark/results/hono-\* in json, gob and html format
 
 localhost/heavy endpoints of the lua and js versions are pinged :
 
--   10 request / s
+-   100 request / s
 -   for duration 10s
 -   total of 100 request
 

@@ -1,6 +1,6 @@
 local Server = require("lib/server")
 local App = require("lib/app")
-local logger = require("lib/logger")
+-- local logger = require("lib/logger")
 
 local test_payload = {
     some_object = {
@@ -12,7 +12,7 @@ local test_payload = {
 local app = App.new()
 
 -- Registering logger middleware
-app:use(logger({ trace = false, verbose = true }))
+-- app:use(logger({ trace = false, verbose = true }))
 
 -- Registering static files
 app
@@ -55,7 +55,7 @@ function HeavyComputation(size)
 end
 
 app:get("/heavy", function(c)
-    local data = HeavyComputation(300000)
+    local data = HeavyComputation(100)
     return c:json({
         data = data
     })

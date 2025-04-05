@@ -72,10 +72,18 @@ routes.forEach((route) => {
         })
         .catch((error) => {
             console.error(`Error fetching ${route.method} ${route.path}:`, error);
-            divsContainer.innerHTML += `<article id="route-${route.method}-${route.path}" style="padding: 1rem; border-radius: 1rem; border: 1px solid red; margin: 1rem;">
-        <h3>${route.method} ${route.path}</h3>
-        <p>Error: Could not fetch data <br/>${error}<br/>
-        Status: ${status} ${statusMsg}</p>
-      </article>`;
+            divsContainer.innerHTML += `   
+            <article 
+                id="route-${route.method}-${route.path}" 
+                style="padding: 1rem; border-radius: 1rem; border: 1px solid red;"
+                >
+                <h3>${route.method} ${route.path}</h3>
+                <p>
+                    Error: Could not fetch data 
+                    <br/>${error}<br/>
+                    Status: ${status} ${statusMsg}
+                </p>
+            </article>
+        `;
         });
 });
