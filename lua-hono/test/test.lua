@@ -122,11 +122,6 @@ function Router:new()
     return instance
 end
 
-local str_1 = ":date?{%d+}"
-local str_2 = "user"
-local str_3 = ":name?"
-local str_4 = ":name{%a+}"
-
 local function createNode()
     return {
         static = {},        -- Exact-match segments.
@@ -324,35 +319,35 @@ end)
 router:register("GET", "/:thing?", function()
     return "Wildcard Match!"
 end)
--- print(inspect(router.routes))
+print(inspect(router.routes))
 
-print("/thing" .. inspect(router:match("GET", "/thing"))) -- found ok
+-- print("/thing" .. inspect(router:match("GET", "/thing"))) -- found ok
 
--- print("/any/static_1/static_2" .. inspect(router:match("GET", "/any/static_1/static_2"))) -- found ok
--- print("/users/123/profile" .. inspect(router:match("GET", "/users/123/profile")))                       -- found ok
--- print("/docs/value/value/value/value" .. inspect(router:match("GET", "/docs/value/value/value/value"))) -- found ok
--- print("/users/profile" .. inspect(router:match("GET", "/users/profile")))                               -- found ok
--- print("/users/john" .. inspect(router:match("GET", "/users/john")))                                     -- found ok
--- print("/users/123" .. inspect(router:match("GET", "/users/123")))                                       -- not found ok
--- print("/files/123" .. inspect(router:match("GET", "/files/123")))                                       -- found ok
--- print("/files/string" .. inspect(router:match("GET", "/files/string")))                                 -- not found ok
+-- -- print("/any/static_1/static_2" .. inspect(router:match("GET", "/any/static_1/static_2"))) -- found ok
+-- -- print("/users/123/profile" .. inspect(router:match("GET", "/users/123/profile")))                       -- found ok
+-- -- print("/docs/value/value/value/value" .. inspect(router:match("GET", "/docs/value/value/value/value"))) -- found ok
+-- -- print("/users/profile" .. inspect(router:match("GET", "/users/profile")))                               -- found ok
+-- -- print("/users/john" .. inspect(router:match("GET", "/users/john")))                                     -- found ok
+-- -- print("/users/123" .. inspect(router:match("GET", "/users/123")))                                       -- not found ok
+-- -- print("/files/123" .. inspect(router:match("GET", "/files/123")))                                       -- found ok
+-- -- print("/files/string" .. inspect(router:match("GET", "/files/string")))                                 -- not found ok
 
-print("/users/123/profile" .. inspect(router:match("POST", "/users/123/profile"))) -- not found ok (405)
--- print("/users/coucou/profile" .. inspect(router:match("GET", "/users/coucou/profile")))                 -- not found ok
+-- print("/users/123/profile" .. inspect(router:match("POST", "/users/123/profile"))) -- not found ok (405)
+-- -- print("/users/coucou/profile" .. inspect(router:match("GET", "/users/coucou/profile")))                 -- not found ok
 
 
--- -- Test des routes
--- local node, params = router:match("GET", "/users/Alice")
--- if node and node.handlers then
---     print(node.handlers[1](params)) -- "Utilisateur : Alice"
--- end
+-- -- -- Test des routes
+-- -- local node, params = router:match("GET", "/users/Alice")
+-- -- if node and node.handlers then
+-- --     print(node.handlers[1](params)) -- "Utilisateur : Alice"
+-- -- end
 
--- local node2, params2 = router:match("GET", "/files/123")
--- if node2 and node2.handlers then
---     print(node2.handlers[1](params2)) -- "Fichier : 123"
--- end
+-- -- local node2, params2 = router:match("GET", "/files/123")
+-- -- if node2 and node2.handlers then
+-- --     print(node2.handlers[1](params2)) -- "Fichier : 123"
+-- -- end
 
--- local node3 = router:match("GET", "/any/anything/here")
--- if node3 and node3.handlers then
---     print(node3.handlers[1]()) -- "Wildcard Match!"
--- end
+-- -- local node3 = router:match("GET", "/any/anything/here")
+-- -- if node3 and node3.handlers then
+-- --     print(node3.handlers[1]()) -- "Wildcard Match!"
+-- -- end
