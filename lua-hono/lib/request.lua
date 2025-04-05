@@ -216,7 +216,7 @@ function Request:_parse()
         -- Parse the first line (request heading)
         local ok, err = self:_extractPathParts()
         if not ok then
-            self:log("Failed to extract path parts: " .. err, true)
+            self:log("Failed to extract path parts: ")
             return false
         end
         self:_extractHeader()
@@ -225,7 +225,7 @@ function Request:_parse()
         if self._headers["Content-Length"] then
             local ok = self:_extractBody()
             if not ok then
-                self:log("Failed to extract body: " .. err, true)
+                self:log("Failed to extract body: ")
                 return false
             end
         end
@@ -235,7 +235,7 @@ function Request:_parse()
     )
 
     if not parsing_ok then
-        self:log("Request Parse Error: " .. err)
+        self:log("Request Parse Error: ")
         return false
     end
 
