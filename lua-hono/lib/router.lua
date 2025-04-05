@@ -1,19 +1,3 @@
--- -- Check if the path has parameters
--- ---@param path string The path to check
--- ---@return boolean True if the path has parameters, false otherwise
--- local has_param = function(path)
---     return path:find(":") ~= nil
--- end
-
--- local split_path = function(path)
---     local parts = {}
---     for part in path:gmatch("[^/]+") do
---         table.insert(parts, part)
---     end
---     return parts
--- end
-
-
 ---@alias Methods "GET"|"POST"|"PUT"|"DELETE"
 ---@alias Handler fun(context: Context): nil|Response
 ---@alias Middleware fun(context: Context, next: fun()): nil
@@ -23,7 +7,7 @@
 ---@class Router
 ---@field new fun(self: Router): Router Create a new Router instance
 ---@field routes table
----@field _register fun(self: Router, methods : Methods, path : string, handlers : Chain)
+---@field _add_route fun(self: Router, methods : Methods, path : string, handlers : Chain)
 ---@field _match fun(self: Router, methods : Methods, path : string)
 ---@field _run_route fun(self: Router, chain : Chain, context : Context)
 local Router = {}
@@ -44,6 +28,7 @@ end
 ---@field handlers Chain|nil
 ---@field isOptionnal boolean
 ---@field userPattern string|nil
+---@field __order table
 
 ---@return RouteNode
 local function createNode()
@@ -53,7 +38,8 @@ local function createNode()
         wildcard = nil,     -- Wildcard catch-all.
         handlers = nil,     -- Handlers at this node.
         isOptional = false, -- For dynamic nodes, true if the parameter is optional.
-        userPattern = nil   -- Lua pattern (string) for validation, if provided.
+        userPattern = nil,  -- Lua pattern (string) for validation, if provided.
+        __order = {}
     }
 end
 
@@ -71,7 +57,7 @@ end
 ---@return "param"|"static"|"wildcard", string, string|nil, boolean
 local function parseSegment(str)
     -- Wildcard segment.
-    if str == "*" then
+    if str == "*" and str ~= "wildcard" then
         return "wildcard", str, nil, false
     end
 
@@ -88,21 +74,104 @@ local function parseSegment(str)
     return "static", str, nil, false
 end
 
+
+
+---@param method Methods | "ALL" | "USE"
+---@param path string
+---@param handlers Chain
+function Router:_add_route(method, path, handlers)
+    method = method:upper()
+    path = path or "*"
+
+
+    local function register(met)
+        local function insertOrdered(node, kind, key)
+            -- Prevent duplicates in __order
+            for _, entry in ipairs(node.__order) do
+                if entry.kind == kind and entry.key == key then
+                    return
+                end
+            end
+            table.insert(node.__order, { kind = kind, key = key })
+        end
+
+        local segments = splitPath(path)
+        if not self.routes[met] then
+            self.routes[met] = createNode()
+        end
+
+        local node = self.routes[met]
+
+        -- all methods
+
+        for _, seg in ipairs(segments) do
+            local segType, paramName, userPattern, isOptional = parseSegment(seg)
+
+            if segType == "static" then
+                node.static[paramName] = node.static[paramName] or createNode()
+                insertOrdered(node, "static", paramName)
+                node = node.static[paramName]
+            elseif segType == "param" then
+                node.param[paramName] = node.param[paramName] or createNode()
+                insertOrdered(node, "param", paramName)
+                node = node.param[paramName]
+                node.isOptional = isOptional
+                if userPattern then
+                    node.userPattern = userPattern
+                end
+            elseif segType == "wildcard" then
+                node.wildcard = node.wildcard or createNode()
+                insertOrdered(node, "wildcard", "*") -- wildcard has no real key, so use a placeholder
+                node = node.wildcard
+            end
+        end
+
+
+        node.handlers = node.handlers or {}
+        for _, handler in ipairs(handlers) do
+            table.insert(node.handlers, handler)
+        end
+    end
+
+    if method == "ALL" then
+        local mets = { "GET", "POST", "PUT", "DELETE" }
+        for _, m in ipairs(mets) do
+            register(m)
+        end
+
+        return
+    end
+
+    -- USE
+
+    if method == "USE" then
+        -- use does not replace a route like ALL, GET ect.
+
+        return
+    end
+
+    register(method)
+
+    -- OTHERS
+end
+
 ---@param node RouteNode
 ---@param segments string[]
 ---@param index number
 ---@param temp_params table<string,string>
 local function traverse(node, segments, index, temp_params)
-    -- Base case: all segments have been processed.
     if index > #segments then
         if node.handlers then
             return node, temp_params
         end
-        -- If there is an optional dynamic parameter available, try to skip it.
-        for _, child in pairs(node.param) do
-            if child.isOptional then
-                local res, paramsFound = traverse(child, segments, index, temp_params)
-                if res then return res, paramsFound end
+        -- Try to match optional parameters
+        for _, entry in ipairs(node.__order) do
+            if entry.kind == "param" then
+                local child = node.param[entry.key]
+                if child and child.isOptional then
+                    local res, paramsFound = traverse(child, segments, index, temp_params)
+                    if res then return res, paramsFound end
+                end
             end
         end
         return nil, nil
@@ -110,83 +179,46 @@ local function traverse(node, segments, index, temp_params)
 
     local seg = segments[index]
 
-    -- 1. Try static children first.
-    if node.static[seg] then
-        local res, paramsFound = traverse(node.static[seg], segments, index + 1, temp_params)
-        if res then return res, paramsFound end
-    end
+    for _, entry in ipairs(node.__order) do
+        local child
 
-    -- 2. Try dynamic (param) children.
-    for paramName, child in pairs(node.param) do
-        -- If a userPattern is provided, validate the current segment.
-        if child.userPattern then
-            if seg:match(child.userPattern) then
-                temp_params[paramName] = seg
-                local res, paramsFound = traverse(child, segments, index + 1, temp_params)
-                if res then return res, paramsFound end
-                temp_params[paramName] = nil
-            end
-        else
-            temp_params[paramName] = seg
+        if entry.kind == "static" and seg == entry.key then
+            child = node.static[entry.key]
             local res, paramsFound = traverse(child, segments, index + 1, temp_params)
             if res then return res, paramsFound end
-            temp_params[paramName] = nil
-        end
+        elseif entry.kind == "param" then
+            child = node.param[entry.key]
+            if child then
+                if child.userPattern then
+                    if seg:match(child.userPattern) then
+                        temp_params[entry.key] = seg
+                        local res, paramsFound = traverse(child, segments, index + 1, temp_params)
+                        if res then return res, paramsFound end
+                        temp_params[entry.key] = nil
+                    end
+                else
+                    temp_params[entry.key] = seg
+                    local res, paramsFound = traverse(child, segments, index + 1, temp_params)
+                    if res then return res, paramsFound end
+                    temp_params[entry.key] = nil
+                end
 
-        -- If the dynamic segment is optional, try skipping it.
-        if child.isOptional then
-            local res, paramsFound = traverse(child, segments, index, temp_params)
+                if child.isOptional then
+                    local res, paramsFound = traverse(child, segments, index, temp_params)
+                    if res then return res, paramsFound end
+                end
+            end
+        elseif entry.kind == "wildcard" and node.wildcard then
+            child = node.wildcard
+            local res, paramsFound = traverse(child, segments, index + 1, temp_params)
             if res then return res, paramsFound end
         end
-    end
-
-    -- 3. Try wildcard if present.
-    if node.wildcard then
-        local res, paramsFound = traverse(node.wildcard, segments, index + 1, temp_params)
-        if res then return res, paramsFound end
     end
 
     return nil, nil
 end
 
----@param method Methods
----@param path string
----@param handlers Chain
-function Router:_register(method, path, handlers)
-    local segments = splitPath(path)
-    method = method:upper()
 
-    if not self.routes[method] then
-        self.routes[method] = createNode()
-    end
-
-    local node = self.routes[method]
-
-    for _, seg in ipairs(segments) do
-        local segType, paramName, userPattern, isOptional = parseSegment(seg)
-
-        if segType == "static" then
-            node.static[paramName] = node.static[paramName] or createNode()
-            node = node.static[paramName]
-        elseif segType == "param" then
-            node.param[paramName] = node.param[paramName] or createNode()
-            node = node.param[paramName]
-            -- Attach additional properties to the dynamic node.
-            node.isOptional = isOptional
-            if userPattern then
-                node.userPattern = userPattern
-            end
-        elseif segType == "wildcard" then
-            node.wildcard = node.wildcard or createNode()
-            node = node.wildcard
-        end
-    end
-
-    node.handlers = node.handlers or {}
-    for _, handler in ipairs(handlers) do
-        table.insert(node.handlers, handler)
-    end
-end
 
 --- Return handlers, found_path flag, params stored
 ---@param method Methods
@@ -263,126 +295,3 @@ function Router:_run_route(chain, context)
 end
 
 return Router
-
-
--- ---@class Trie
-
--- -- Extract parameters from a path
--- ---@param path string The path to extract parameters from
--- ---@return table The parameters extracted from the path
--- local make_trie = function(path)
---     local trie = {}
---     local parts = split_path(path)
-
---     -- Create the trie structure
---     local current = trie
---     for i = 1, #parts do
---         local part = parts[i]
---         local is_param = part:match("^:") ~= nil
-
---         -- Create node
---         current.is_param = is_param
---         current.value = part
-
---         -- Add next pointer if not last element
---         if i < #parts then
---             current.next = {}
---             current = current.next
---             current.done = false
---         else
---             current.done = true
---         end
---     end
-
---     return trie
--- end
-
--- -- Add a route to the router
--- ---@param method string The HTTP method to add the route to
--- ---@param path string The path to add the route to
--- ---@param handlers table<function> The handlers to add to the route
--- function Router:_register(method, path, handlers)
---     table.insert(self._routes, method .. "@" .. path)
-
---     if not self[method] then
---         self[method] = {
---             indexed = {},
---             tries = {}
---         }
---     end
-
---     if not has_param(path) then
---         self[method].indexed[path] = handlers
---     else
---         local trie = make_trie(path)
---         table.insert(trie, {
---             handlers = handlers
---         })
---         table.insert(self[method].tries, trie)
---     end
--- end
-
--- -- Find a route handler with O(1) complexity by using a linear router
--- -- The routes indexed does not have parameters
--- ---@param request Request The request object
--- ---@return table<function>|nil The route handler function if found, nil otherwise
--- function Router:find_linear(request)
---     -- the diference comparison in lua : "nil" ~= nil
---     return self[request.method].indexed[request.path]
--- end
-
--- -- Find a route handler with O(n) complexity by using a TrieRouter
--- -- The routes indexed have parameters
--- ---@param request Request The request object
--- ---@return table<function>|nil The route handler function if found, nil otherwise
--- function Router:find_tries(request)
---     local parts = {}
-
---     for part in request.path:gmatch("[^/]+") do
---         table.insert(parts, part)
---     end
-
---     for _, trie in ipairs(self[request.method].tries) do
---         local current = trie
---         local temp_params = {}
-
---         for i = 1, #parts do
---             local part = parts[i]
---             if current.is_param then
---                 temp_params[current.value] = part
---             else
---                 if part ~= current.value then
---                     break
---                 end
---             end
-
---             if current.done then
---                 for k, v in pairs(temp_params) do
---                     request._params[k:gsub(":", "")] = v
---                 end
---                 return trie[1].handlers
---             else
---                 current = current.next
---             end
---         end
---     end
--- end
-
--- ---@param request Request The request object
--- ---@return table<function>|nil The route handler function if found, nil otherwise
--- function Router:find(request)
---     -- GET@/users/:name/:id"
-
---     local handlers = nil
---     handlers = self:find_linear(request)
---     if handlers then
---         return handlers
---     end
-
---     handlers = self:find_tries(request)
---     if handlers then
---         return handlers
---     end
-
---     return nil
--- end
