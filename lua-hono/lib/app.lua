@@ -29,13 +29,32 @@ function App:_setLogger(log)
 end
 
 -- See the routes in json format
-function App:see_routes()
-    -- if not self._log then
-    --     return
-    -- end
-    -- self._log:routes(self._router)
+---@param config? table
+function App:see_routes(config)
+    local function clean_order(node)
+        node.__order = nil
 
-    print(inspect(self._router.routes))
+        if node.param then
+            for _, child in pairs(node.param) do
+                clean_order(child)
+            end
+        end
+
+        if node.static then
+            for _, child in pairs(node.static) do
+                clean_order(child)
+            end
+        end
+    end
+
+    local printable = self._router.routes
+    if config and config.order == false then
+        for method, _ in pairs(printable) do
+            clean_order(printable[method])
+        end
+    end
+
+    print(inspect(printable))
 end
 
 function App:use(path, ...)
