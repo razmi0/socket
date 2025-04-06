@@ -1,3 +1,5 @@
+local inspect = require("inspect")
+
 ---@alias Methods "GET"|"POST"|"PUT"|"DELETE"
 ---@alias Handler fun(context: Context): nil|Response
 ---@alias Middleware fun(context: Context, next: fun()): nil
@@ -5,11 +7,11 @@
 ---@alias Chain MiddlewaresHandler[]
 
 ---@class Router
----@field new fun(self: Router): Router Create a new Router instance
+---@field new fun(): Router Create a new Router instance
 ---@field routes table
 ---@field _add_route fun(self: Router, methods : Methods, path : string, handlers : Chain)
----@field _match fun(self: Router, methods : Methods, path : string)
----@field _run_route fun(self: Router, chain : Chain, context : Context)
+---@field _match fun(self: Router, methods : Methods, path : string):Chain?, boolean, table<string,string>
+---@field _run_route fun(self: Router, chain : Chain, context : Context):Response|nil
 local Router = {}
 Router.__index = Router
 
@@ -82,6 +84,7 @@ end
 function Router:_add_route(method, path, handlers)
     method = method:upper()
     path = path or "*"
+    local segments = splitPath(path)
 
 
     local function register(met)
@@ -94,8 +97,6 @@ function Router:_add_route(method, path, handlers)
             end
             table.insert(node.__order, { kind = kind, key = key })
         end
-
-        local segments = splitPath(path)
         if not self.routes[met] then
             self.routes[met] = createNode()
         end
@@ -121,7 +122,7 @@ function Router:_add_route(method, path, handlers)
                 end
             elseif segType == "wildcard" then
                 node.wildcard = node.wildcard or createNode()
-                insertOrdered(node, "wildcard", "*") -- wildcard has no real key, so use a placeholder
+                insertOrdered(node, "wildcard", "*")
                 node = node.wildcard
             end
         end
@@ -133,32 +134,25 @@ function Router:_add_route(method, path, handlers)
         end
     end
 
-    if method == "ALL" then
+    if method == "ALL" or method == "USE" then
         local mets = { "GET", "POST", "PUT", "DELETE" }
         for _, m in ipairs(mets) do
             register(m)
         end
 
         return
+    else
+        register(method)
     end
-
-    -- USE
-
-    if method == "USE" then
-        -- use does not replace a route like ALL, GET ect.
-
-        return
-    end
-
-    register(method)
-
-    -- OTHERS
 end
+
+-- OTHERS
 
 ---@param node RouteNode
 ---@param segments string[]
 ---@param index number
 ---@param temp_params table<string,string>
+---@return RouteNode|nil , table<string,string>|nil
 local function traverse(node, segments, index, temp_params)
     if index > #segments then
         if node.handlers then
@@ -210,6 +204,9 @@ local function traverse(node, segments, index, temp_params)
             end
         elseif entry.kind == "wildcard" and node.wildcard then
             child = node.wildcard
+            if not child then
+                return nil, nil
+            end
             local res, paramsFound = traverse(child, segments, index + 1, temp_params)
             if res then return res, paramsFound end
         end
@@ -220,10 +217,9 @@ end
 
 
 
+
+
 --- Return handlers, found_path flag, params stored
----@param method Methods
----@param path string
----@return Chain, boolean, table<string,string>
 function Router:_match(method, path)
     local segments = splitPath(path)
     local temp_params = {}
@@ -241,6 +237,7 @@ function Router:_match(method, path)
 
     -- If no match under the requested method, try all other methods
     -- to determine if the path exists for a different HTTP method.
+    -- an alternative would be to store all paths
     if not matched_node then
         for m, node in pairs(self.routes) do
             if m ~= method then
@@ -254,19 +251,16 @@ function Router:_match(method, path)
     end
 
     local handlers = matched_node and matched_node.handlers or nil
-    local found_path = found_path
     local params = matched_params or {}
 
     return handlers, found_path, params
 end
 
----@param chain Chain The handlers and middleware to run
----@param context Context The context object
----@return Response|nil
 function Router:_run_route(chain, context)
     -- last index is the handler
     -- others are middleware
     local handler = chain[#chain]
+    ---@type Response|nil
     local response = context.res
 
     local function dispatch(i)
