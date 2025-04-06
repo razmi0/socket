@@ -38,8 +38,8 @@ app:get("/index.css", function(c)
     return c:serve({ path = "./public/index.css" })
 end)
 
-app:get("/index.css", function(c)
-    return c:serve({ path = "./public/index.css" })
+app:get("/luvit.webp", function(c)
+    return c:serve({ path = "./public/luvit.webp" })
 end)
 
 app:use("/any", function(c, next)
