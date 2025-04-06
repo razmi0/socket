@@ -18,38 +18,23 @@ app.get("/heavy", (c) => {
     });
 });
 
-// GET /foo ---> `common` // foo will not be dispatched
-app.get("*", (c) => {
-    return c.text("common");
+app.use("/mid", async (_, next) => {
+    console.log("1");
+    await next();
+    console.log("2");
 });
 
-app.get("/foo", (c) => {
-    return c.text("foo");
+app.get("/any", (c) => {
+    return c.json({
+        data: "/any1",
+    });
 });
 
-// app.get(
-//     "/chain",
-//     // Middleware 1
-//     async (c, next) => {
-//         c.set("key-1", " wo");
-//         await next();
-//         c.header(c.get("handler-1")!, "done");
-//     },
-//     // Middleware 2
-//     async (c, next) => {
-//         c.set("key-2", "rld");
-//         await next();
-//         c.header(c.get("handler-2")!, "done");
-//     },
-//     // Handler
-//     (c) => {
-//         c.set("handler-1", "X-Middleware-1");
-//         c.set("handler-2", "X-Middleware-2");
-//         return c.json({
-//             json: "Hello" + c.get("key-1") + c.get("key-2"),
-//         });
-//     }
-// );
+app.use("/any", async (_, next) => {
+    console.log("3");
+    await next();
+    console.log("4");
+});
 
 serve(
     {
