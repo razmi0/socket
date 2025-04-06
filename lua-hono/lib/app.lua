@@ -8,11 +8,11 @@ local inspect = require("inspect")
 ---@class App
 ---@field _log table
 ---@field _router Router
+---@field new fun():App
 ---@field get fun(self: App, path: string, callback: function): App
 ---@field post fun(self: App, path: string, callback: function): App
----@field new fun(self: App): App
 ---@field _setLogger fun(self: App, log: table): nil
----@field _run fun(self: App, client: Client): nil
+---@field _run fun(self: App, client: unknown): nil
 ---@field use fun(self: App, middleware: function): App
 
 local App = {}
@@ -108,7 +108,7 @@ function App:_run(client)
             return
         end
 
-        local ok = req:_parse()
+        local ok = req:parse()
         if not ok then
             if self._log then
                 self._log:push("Failed to parse request !")

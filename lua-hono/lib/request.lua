@@ -37,9 +37,6 @@ local default_request = {
 }
 
 ---Constructor for the Request object
----@param client table The socket client instance
----@param logger? Inspect The logger instance
----@return Request
 function Request.new(client, logger)
     local instance = setmetatable({}, Request)
 
@@ -73,8 +70,6 @@ function Request:log(content, is_err)
 end
 
 --- Get a header value or all headers
---- @param key string|nil The header key to retrieve, or nil to get all headers
---- @return table|string|nil The header value, all headers, or nil if not found
 function Request:header(key)
     if not key then
         return self._headers
@@ -83,8 +78,6 @@ function Request:header(key)
 end
 
 --- Get a query value or all queries
---- @param key string|nil The query key to retrieve, or nil to get all queries
---- @return table|string|nil The query value, all queries, or nil if not found
 function Request:query(key)
     if not key then
         return self._queries
@@ -93,8 +86,6 @@ function Request:query(key)
 end
 
 --- Get a parameter value or all parameters
---- @param key string|nil The parameter key to retrieve, or nil to get all parameters
---- @return table|string|nil The parameter value, all parameters, or nil if not found
 function Request:param(key)
     if not key then
         return self._params
@@ -104,8 +95,6 @@ end
 
 --- Unfinished
 --- Parse the request body according to the specified content type
---- @param type string The content type to parse the body as
---- @return Request
 function Request:parseBody(type)
     self:log("Parsing body")
     local bodyType = {
@@ -121,7 +110,6 @@ function Request:parseBody(type)
 end
 
 ---Receive a line from the client socket
----@return string|nil, string|nil The line received or nil, and the error message or nil
 function Request:_receiveLine()
     -- no client bound
     if not self.__client then
@@ -209,8 +197,7 @@ function Request:_extractBody()
 end
 
 ---Parse the incoming request
----@return boolean
-function Request:_parse()
+function Request:parse()
     self:log("Parsing incoming request")
     local parsing_ok, err = pcall(function()
         -- Parse the first line (request heading)

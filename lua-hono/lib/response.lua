@@ -55,7 +55,6 @@ local default_response = {
 
 ---Constructor for the Response object
 ---@param client table The socket client instance
----@param logger? Inspect The logger instance
 ---@return Response
 function Response.new(client, logger)
     local instance = setmetatable({}, Response)
