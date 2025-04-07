@@ -101,8 +101,10 @@ end
 
 ---@return Response The response object
 function Context:notFound()
+    -- setContentType fun(self: Response, contentType: string): Response Set the Content-Type header
+    self.res:setContentType("text/plain")
     self.res:setStatus(404)
-    self.res:setBody("Not Found")
+    self.res:setBody("404 Not Found")
     return self.res
 end
 

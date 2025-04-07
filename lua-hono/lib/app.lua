@@ -116,7 +116,7 @@ function App:_run(client)
         if not ok then
             error(400)
         end
-        -- Find the route handler
+        -- Find the route handler in the router no magic
         local handlers, found_path, params = self._router:_match(req.method, req.path)
         -- Reference params in Request & Context ( default/reset to {} )
         req._params = params
@@ -131,7 +131,7 @@ function App:_run(client)
         -- We found a route with user callbacks
         local handler_response = self._router:_run_route(handlers, ctx)
         if not handler_response then
-            error(500)
+            error(404)
         end
         -- all went well, handler response is sent
         handler_response:send()
