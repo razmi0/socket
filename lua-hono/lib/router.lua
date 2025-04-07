@@ -249,12 +249,16 @@ function Router:_run_route(chain, context)
     local handler = chain[#chain]
     ---@type Response|nil
     local response = context.res
+
     local function dispatch(i)
-        -- all middleware and handler are executed, we leave the execution flow
-        if i > #chain then return end
-        -- Execute final handler and store the response
+        if i > #chain then
+            -- all middleware and handler are executed, we leave the execution flow
+            return
+        end
         if i == #chain then
-            response = handler(context)
+            local next = function() end
+            -- Execute final handler and store the response
+            response = handler(context, next)
         else
             -- Middleware execution with next control
             local nextCalled = false
@@ -268,6 +272,7 @@ function Router:_run_route(chain, context)
             chain[i](context, next)
         end
     end
+
     dispatch(1)
     return response
 end
