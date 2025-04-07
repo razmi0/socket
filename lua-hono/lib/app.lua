@@ -112,7 +112,7 @@ function App:_run(client)
         if not req or not res or not ctx then
             error(400)
         end
-        local ok = req:parse()
+        local ok = req:_parse()
         if not ok then
             error(400)
         end

@@ -12,7 +12,6 @@
 ---@field bodyParsed boolean Whether the body has been parsed
 ---@field new fun(client : unknown): Request Contructor
 ---@field _parse fun(self: Request): boolean Parse the request (heading, headers, body)
----@field _close fun(self: Request): boolean Close the request
 ---@field header fun(self: Request, key: string): string|table Get a header value or all headers
 ---@field query fun(self: Request, key: string): string|table Get a query value or all queries
 ---@field param fun(self: Request, key: string): string|table Get a parameter value or all parameters
@@ -92,14 +91,11 @@ function Request:parseBody(type)
 end
 
 ---Receive a line from the client socket
-function Request:_receiveLine()
-    -- no client bound
+local function receiveLine(self)
     if not self._client then
         return nil, "Client not bound to request"
     end
-    -- receive line
     local line, err = self._client:receive()
-    -- empty line received (end of request section)
     if line == "" or err then
         if err == "timeout" then
             return nil, "Timeout while reading line from client"
@@ -110,14 +106,14 @@ function Request:_receiveLine()
 end
 
 ---@return string|nil, string|nil, string|nil, table|nil The method, path, protocol, query parameters, or nil
-function Request:_extractPathParts()
-    local headingLine, err = self:_receiveLine()
+local function extractPathParts(self)
+    local headingLine, err = receiveLine(self)
     if not headingLine then
-        return nil, "Failed to read request heading " .. err .. " "
+        return nil, "Failed to read request heading " .. (err or "")
     end
     local method, url, protocol = headingLine:match("(%S+)%s+(%S+)%s+(%S+)")
     if not method or not url or not protocol then
-        return nil, "Failed to parse request heading: " .. headingLine .. " " .. err
+        return nil, "Failed to parse request heading: " .. headingLine
     end
     local path, query_string = url:match("([^?]+)%??(.*)")
     local queryTable = {}
@@ -131,9 +127,9 @@ function Request:_extractPathParts()
     return "true"
 end
 
-function Request:_extractHeader()
+local function extractHeader(self)
     while true do
-        local headerLine, err = self:_receiveLine()
+        local headerLine, err = receiveLine(self)
         if not headerLine or err then
             if err then
                 print(err)
@@ -148,7 +144,7 @@ function Request:_extractHeader()
     end
 end
 
-function Request:_extractBody()
+local function extractBody(self)
     self.hasBody = true
     local contentLength = tonumber(self._headers["Content-Length"]) or 0
     if contentLength > 0 then
@@ -161,33 +157,31 @@ function Request:_extractBody()
             self.body = body
         end
     end
+    return true
 end
 
 ---Parse the incoming request
-function Request:parse()
+---@private
+function Request:_parse()
     local parsing_ok, err = pcall(function()
-        -- Parse the first line (request heading)
-        local ok, err = self:_extractPathParts()
+        local ok, err = extractPathParts(self)
         if not ok then
+            self:log("Failed to extract path parts: " .. err)
             return false
         end
-        self:_extractHeader()
-
-        -- Parse the body if it exists
+        extractHeader(self)
         if self._headers["Content-Length"] then
-            local ok = self:_extractBody()
+            local ok = extractBody(self)
             if not ok then
                 return false
             end
         end
         self.bodyParsed = true
         return true
-    end
-    )
+    end)
     if not parsing_ok then
         return false
     end
-
     return true
 end
 
