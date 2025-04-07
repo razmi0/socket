@@ -97,6 +97,9 @@ function App:_run(client)
             res:setStatus(err)
             res:send()
         else
+            if type(err) == "string" then
+                print("Unhandle internal error : " .. err)
+            end
             res:setStatus(500)
             res:send()
         end
