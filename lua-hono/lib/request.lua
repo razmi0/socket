@@ -106,7 +106,6 @@ function Request:_receiveLine()
         end
         return nil, nil
     end
-
     return line, nil
 end
 
@@ -170,7 +169,6 @@ function Request:parse()
         -- Parse the first line (request heading)
         local ok, err = self:_extractPathParts()
         if not ok then
-            self:log("Failed to extract path parts: ")
             return false
         end
         self:_extractHeader()
