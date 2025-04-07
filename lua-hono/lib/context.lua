@@ -34,7 +34,7 @@ Context.__index = Context
 
 ---@param request Request The request object
 ---@param response Response The response object
----@return Context The new context object
+---@return Context
 function Context.new(request, response)
     local instance = setmetatable({}, Context)
     instance.req = request
@@ -140,7 +140,7 @@ function Context:serve(config)
     if not content then
         return self:notFound()
     end
-    local mimeType = mime.guess(self.req.path)
+    local mimeType = mime.guess(config.path)
     self.res:setContentType(mimeType)
     self.res:setStatus(200)
     self.res:setBody(content)
