@@ -66,6 +66,15 @@ app:get("/any",
     end
 )
 
+app:post("/any",
+    function(c)
+        print("---handler")
+        return c:json({
+            get = "ok-post"
+        })
+    end
+)
+
 Server.new(app):start({
     port = 3000
 })

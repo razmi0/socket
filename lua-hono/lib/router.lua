@@ -1,4 +1,11 @@
-local inspect = require("inspect")
+---@class RouteNode
+---@field static table
+---@field param table
+---@field wildcard table|nil
+---@field handlers Chain|nil
+---@field isOptionnal boolean
+---@field userPattern string|nil
+---@field __order table
 
 ---@alias Methods "GET"|"POST"|"PUT"|"DELETE"
 ---@alias Handler fun(context: Context): nil|Response
@@ -12,6 +19,7 @@ local inspect = require("inspect")
 ---@field _add_route fun(self: Router, methods : Methods, path : string, handlers : Chain)
 ---@field _match fun(self: Router, methods : Methods, path : string):Chain?, boolean, table<string,string>
 ---@field _run_route fun(self: Router, chain : Chain, context : Context):Response|nil
+
 local Router = {}
 Router.__index = Router
 
@@ -22,15 +30,6 @@ function Router.new()
     instance.routes = {}
     return instance
 end
-
----@class RouteNode
----@field static table
----@field param table
----@field wildcard table|nil
----@field handlers Chain|nil
----@field isOptionnal boolean
----@field userPattern string|nil
----@field __order table
 
 ---@return RouteNode
 local function createNode()
@@ -85,8 +84,6 @@ function Router:_add_route(method, path, handlers)
     method = method:upper()
     path = path or "*"
     local segments = splitPath(path)
-
-
     local function register(met)
         local function insertOrdered(node, kind, key)
             -- Prevent duplicates in __order
@@ -215,18 +212,11 @@ local function traverse(node, segments, index, temp_params)
     return nil, nil
 end
 
-
-
-
-
---- Return handlers, found_path flag, params stored
 function Router:_match(method, path)
     local segments = splitPath(path)
     local temp_params = {}
     local matched_node, matched_params = nil, nil
     local found_path = false
-
-
     -- Attempt to match the route under the requested method.
     if self.routes[method] then
         matched_node, matched_params = traverse(self.routes[method], segments, 1, temp_params)
@@ -234,10 +224,9 @@ function Router:_match(method, path)
             found_path = true
         end
     end
-
     -- If no match under the requested method, try all other methods
     -- to determine if the path exists for a different HTTP method.
-    -- an alternative would be to store all paths
+    -- an alternative, possibly O1, would be to store all paths in a set (e.g Array<string,true>)
     if not matched_node then
         for m, node in pairs(self.routes) do
             if m ~= method then
@@ -249,10 +238,8 @@ function Router:_match(method, path)
             end
         end
     end
-
     local handlers = matched_node and matched_node.handlers or nil
     local params = matched_params or {}
-
     return handlers, found_path, params
 end
 
@@ -262,7 +249,6 @@ function Router:_run_route(chain, context)
     local handler = chain[#chain]
     ---@type Response|nil
     local response = context.res
-
     local function dispatch(i)
         -- all middleware and handler are executed, we leave the execution flow
         if i > #chain then return end
@@ -278,12 +264,10 @@ function Router:_run_route(chain, context)
                     dispatch(i + 1)
                 end
             end
-
             -- Execute middleware and ignore its return value
             chain[i](context, next)
         end
     end
-
     dispatch(1)
     return response
 end

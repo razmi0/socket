@@ -1,7 +1,7 @@
 ---@class Response
 ---@field new fun(client: table): Response Create a new Response instance
----@field __current string The current built response string
----@field __client table The socket client instance
+---@field _current string The current built response string
+---@field _client table The socket client instance
 ---@field protocol string The protocol of the response
 ---@field status number The HTTP status code
 ---@field statusMessage string The HTTP status message
@@ -38,8 +38,8 @@ local STATUS_CODES = {
 -- Default properties for a new Response object
 -- especially usefull for the constructor
 local default_response = {
-    __current = "",
-    __client = nil,
+    _current = "",
+    _client = nil,
     protocol = "HTTP/1.1",
     status = 200,
     statusMessage = "OK",
@@ -56,37 +56,22 @@ local default_response = {
 ---Constructor for the Response object
 ---@param client table The socket client instance
 ---@return Response
-function Response.new(client, logger)
+function Response.new(client)
     local instance = setmetatable({}, Response)
-
-    if logger then
-        instance.__logger = logger
-    end
-
     for key, value in pairs(default_response) do
         instance[key] = value
     end
-
     instance._headers = {}
     for key, value in pairs(default_response._headers) do
         instance._headers[key] = value
     end
-
     if client then
-        instance.__client = client
+        instance._client = client
     else
         error("Client failed to bind to response")
     end
-
     instance:_build()
-
     return instance
-end
-
-function Response:log(content)
-    if self.__logger then
-        self.__logger:push(content)
-    end
 end
 
 --- Get a header value or all headers
@@ -99,9 +84,9 @@ function Response:header(key)
     return self._headers[key]
 end
 
---- Set the HTTP status code and message
---- @param status number The HTTP status code (e.g., 200, 404, 500)
---- @return Response self The response instance for method chaining
+---- - Set the HTTP status code and message
+---- - @param status number The HTTP status code (e.g., 200, 404, 500)
+---- - @return Response self The response instance for method chaining
 function Response:setStatus(status)
     self.status = status
     self.statusMessage = STATUS_CODES[status] or "Unknown"
@@ -138,30 +123,26 @@ end
 --- Send the response to the client
 function Response:send()
     self:_build()
-    self.__client:send(self.__current)
-    self:log("Sending response" .. "-->" .. self.status .. " " .. self.statusMessage)
+    self._client:send(self._current)
 end
 
 --- Build the complete HTTP response string
---- The raw http response (__current) is built when the instance is created and before sending to the client
+--- The raw http response (_current) is built when the instance is created and before sending to the client
 --- In between, the response can be modified
 --- @private
 function Response:_build()
-    self:log("Building response")
     local heading = ("%s %d %s\r\n"):format(
         self.protocol,
         self.status,
         self.statusMessage
     )
-
     local headers = ""
     for key, value in pairs(self._headers) do
         if value ~= nil then
             headers = headers .. ("%s: %s\r\n"):format(key, value)
         end
     end
-
-    self.__current = heading .. headers .. "\r\n" .. self.body
+    self._current = heading .. headers .. "\r\n" .. self.body
 end
 
 return Response

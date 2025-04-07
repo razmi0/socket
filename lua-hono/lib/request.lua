@@ -1,5 +1,5 @@
 ---@class Request
----@field __client table The socket client instance
+---@field _client table The socket client instance
 ---@field _headers table<string, string> The headers of the request
 ---@field _queries table<string, string> The queries of the request
 ---@field _params table<string, string> The parameters of the request
@@ -10,6 +10,7 @@
 ---@field hasBody boolean Whether the request has a body
 ---@field bodyType string The type of the body
 ---@field bodyParsed boolean Whether the body has been parsed
+---@field new fun(client : unknown): Request Contructor
 ---@field _parse fun(self: Request): boolean Parse the request (heading, headers, body)
 ---@field _close fun(self: Request): boolean Close the request
 ---@field header fun(self: Request, key: string): string|table Get a header value or all headers
@@ -20,8 +21,6 @@
 local Request = {}
 Request.__index = Request
 
--- Default properties for a new Request object
--- especially usefull for the constructor
 local default_request = {
     _headers = {},
     _queries = {},
@@ -36,37 +35,21 @@ local default_request = {
     keepAlive = false,
 }
 
----Constructor for the Request object
-function Request.new(client, logger)
+function Request.new(client)
     local instance = setmetatable({}, Request)
-
     for key, value in pairs(default_request) do
         instance[key] = value
     end
-
     instance._headers = {}
     for key, value in pairs(default_request._headers) do
         instance._headers[key] = value
     end
-
     if client then
-        instance.__client = client
+        instance._client = client
     else
         error("Client failed to bind to request")
     end
-
-    if logger then
-        instance.__logger = logger
-    end
-
-
     return instance
-end
-
-function Request:log(content, is_err)
-    if self.__logger then
-        self.__logger:push(content, is_err)
-    end
 end
 
 --- Get a header value or all headers
@@ -96,7 +79,6 @@ end
 --- Unfinished
 --- Parse the request body according to the specified content type
 function Request:parseBody(type)
-    self:log("Parsing body")
     local bodyType = {
         expected = self._headers["Content-Type"],
         asked = type
@@ -112,13 +94,11 @@ end
 ---Receive a line from the client socket
 function Request:_receiveLine()
     -- no client bound
-    if not self.__client then
+    if not self._client then
         return nil, "Client not bound to request"
     end
-
     -- receive line
-    local line, err = self.__client:receive()
-
+    local line, err = self._client:receive()
     -- empty line received (end of request section)
     if line == "" or err then
         if err == "timeout" then
@@ -130,10 +110,8 @@ function Request:_receiveLine()
     return line, nil
 end
 
----Extract parts from the request heading line
 ---@return string|nil, string|nil, string|nil, table|nil The method, path, protocol, query parameters, or nil
 function Request:_extractPathParts()
-    self:log("Extracting path parts")
     local headingLine, err = self:_receiveLine()
     if not headingLine then
         return nil, "Failed to read request heading " .. err .. " "
@@ -151,16 +129,10 @@ function Request:_extractPathParts()
     self.path = path
     self.protocol = protocol
     self._queries = queryTable
-
-    self:log("Request: " .. self.method .. " " .. self.path)
-
     return "true"
 end
 
----Extract the headers from the request
 function Request:_extractHeader()
-    self:log("Extracting headers")
-    -- Parse the headers
     while true do
         local headerLine, err = self:_receiveLine()
         if not headerLine or err then
@@ -169,13 +141,10 @@ function Request:_extractHeader()
             end
             break
         end
-
         local key, value = headerLine:match("([^:]+):%s*(.+)")
         if not key then
-            self:log("Failed to parse header line: " .. headerLine, true)
             break
         end
-
         self._headers[key] = value
     end
 end
@@ -184,11 +153,10 @@ function Request:_extractBody()
     self.hasBody = true
     local contentLength = tonumber(self._headers["Content-Length"]) or 0
     if contentLength > 0 then
-        local body, err = self.__client:receive(contentLength)
+        local body, err = self._client:receive(contentLength)
         if err then
             self.hasBody = false
             self.body = nil
-            self:log("Failed to receive request body: " .. err, true)
             return false
         else
             self.body = body
@@ -198,7 +166,6 @@ end
 
 ---Parse the incoming request
 function Request:parse()
-    self:log("Parsing incoming request")
     local parsing_ok, err = pcall(function()
         -- Parse the first line (request heading)
         local ok, err = self:_extractPathParts()
@@ -212,7 +179,6 @@ function Request:parse()
         if self._headers["Content-Length"] then
             local ok = self:_extractBody()
             if not ok then
-                self:log("Failed to extract body: ")
                 return false
             end
         end
@@ -220,9 +186,7 @@ function Request:parse()
         return true
     end
     )
-
     if not parsing_ok then
-        self:log("Request Parse Error: ")
         return false
     end
 

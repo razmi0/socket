@@ -2,9 +2,6 @@ local cjson = require "cjson"
 local mime = require 'mimetypes'
 local File = require('lib/file')
 
-
-
-
 ---@class Context
 ---@field req Request The request object
 ---@field res Response The response object

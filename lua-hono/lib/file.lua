@@ -9,16 +9,20 @@ function File.new(root)
     return instance
 end
 
+-- need rework
 ---@param path string The path to find
 ---@return string|nil The content of the file
 function File:find(path)
     if path:find("*") then
         local files = io.popen("ls " .. self.root .. path)
-        local result = {}
-        for file in files:lines() do
-            table.insert(result, file)
+
+        if files then
+            local result = {}
+            for file in files:lines() do
+                table.insert(result, file)
+            end
+            return result
         end
-        return result
     end
 
     if self.root then
