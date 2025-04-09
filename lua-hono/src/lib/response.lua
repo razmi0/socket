@@ -1,5 +1,6 @@
 ---@class Response
 ---@field new fun(client: table): Response Create a new Response instance
+---@field msgFromCode fun(self : Response, code : number) : string Return the status message from a status code
 ---@field _current string The current built response string
 ---@field _client table The socket client instance
 ---@field protocol string The protocol of the response
@@ -91,6 +92,12 @@ function Response:setStatus(status)
     self.status = status
     self.statusMessage = STATUS_CODES[status] or "Unknown"
     return self
+end
+
+---@param code number Status code
+---@return string message
+function Response:msgFromCode(code)
+    return STATUS_CODES[code] or "Unknown"
 end
 
 --- Set the response body and update related headers
