@@ -23,6 +23,8 @@
 local Router = {}
 Router.__index = Router
 
+local mets = { "GET", "POST", "PUT", "DELETE" }
+
 -- Create a new Router instance
 ---@return Router
 function Router.new()
@@ -75,7 +77,7 @@ local function parseSegment(str)
     return "static", str, nil, false
 end
 
-
+-- first handler declare = first executed like hono
 
 ---@param method Methods | "ALL" | "USE"
 ---@param path string
@@ -125,8 +127,6 @@ function Router:_add_route(method, path, handlers)
                 node = node.wildcard
             end
         end
-
-
         node.handlers = node.handlers or {}
         for _, handler in ipairs(handlers) do
             table.insert(node.handlers, handler)
@@ -140,7 +140,8 @@ function Router:_add_route(method, path, handlers)
 
 
     ----- registation flow ----->
-    -- use("*") override handlers (like handlers between them)
+    -- use("*") override handlers
+    -- handler and middleware are registered in the same manner (except *)
     -- use("*") does not add middleware at deep levels of trie
 
     -- use("*") activates with all methods and all path of all levels, it adds to all handlers on node
@@ -153,7 +154,6 @@ function Router:_add_route(method, path, handlers)
 
 
     if method == "ALL" or method == "USE" then
-        local mets = { "GET", "POST", "PUT", "DELETE" }
         for _, m in ipairs(mets) do
             register(m)
         end
@@ -276,6 +276,7 @@ function Router:_run_route(chain, context)
         end
         if i == #chain then
             local next = function()
+                -- need a better handling here (server crash and 500)
                 print("Did you make a next() call in an handler ?")
             end
             -- Execute final handler and store the response
