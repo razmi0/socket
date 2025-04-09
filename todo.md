@@ -7,3 +7,9 @@
 - [x] if there's middleware but no handler => 404 (currently 500)
 - [ ] test middleware with wildcard
 - [ ] all error should return type text/plain and the status statusmsg in body
+
+- [ ] : logger
+- [ ] : basic auth
+- [ ] : JWT auth
+- [ ] : renderer
+- [ ] : prettyprint

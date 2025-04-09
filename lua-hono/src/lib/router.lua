@@ -119,7 +119,9 @@ function Router:_add_route(method, path, handlers)
                 end
             elseif segType == "wildcard" then
                 node.wildcard = node.wildcard or createNode()
-                insertOrdered(node, "wildcard", "*")
+                if not method == "USE" then
+                    insertOrdered(node, "wildcard", "*")
+                end
                 node = node.wildcard
             end
         end
@@ -130,6 +132,25 @@ function Router:_add_route(method, path, handlers)
             table.insert(node.handlers, handler)
         end
     end
+
+
+    -- Error: Context is not finalized. Did you forget to return a Response object or `await next()`?
+    -- -- middleware should always call next ? YES
+    -- -- handler always response ? YES
+
+
+    ----- registation flow ----->
+    -- use("*") override handlers (like handlers between them)
+    -- use("*") does not add middleware at deep levels of trie
+
+    -- use("*") activates with all methods and all path of all levels, it adds to all handlers on node
+    -- use("*/*") activates only to node deep level 2
+
+    -- my first idea is to add middleware from use to an array node level specific(wilcard, param, static ect)
+    -- and add iteratively the middlewares to a queue that is added to node.handlers if found path and methods else is reseted
+    -- maybe wildcard should have a key .middleware for storing the functions
+
+
 
     if method == "ALL" or method == "USE" then
         local mets = { "GET", "POST", "PUT", "DELETE" }
@@ -226,7 +247,7 @@ function Router:_match(method, path)
     end
     -- If no match under the requested method, try all other methods
     -- to determine if the path exists for a different HTTP method.
-    -- an alternative, possibly O1, would be to store all paths in a set (e.g Array<string,true>)
+    -- an alternative, possibly O1, would be to store all paths in a set (e.g Record<string,true>)
     if not matched_node then
         for m, node in pairs(self.routes) do
             if m ~= method then
@@ -249,14 +270,14 @@ function Router:_run_route(chain, context)
     local handler = chain[#chain]
     ---@type Response|nil
     local response = context.res
-
     local function dispatch(i)
         if i > #chain then
-            -- all middleware and handler are executed, we leave the execution flow
-            return
+            return nil -- all middleware and handler are executed, we leave the execution flow
         end
         if i == #chain then
-            local next = function() end
+            local next = function()
+                print("Did you make a next() call in an handler ?")
+            end
             -- Execute final handler and store the response
             response = handler(context, next)
         else
@@ -266,6 +287,8 @@ function Router:_run_route(chain, context)
                 if not nextCalled then
                     nextCalled = true
                     dispatch(i + 1)
+                else
+                    print("Did you called next() multiple times in a middleware ?")
                 end
             end
             -- Execute middleware and ignore its return value

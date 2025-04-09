@@ -18,22 +18,21 @@ app.get("/heavy", (c) => {
     });
 });
 
-app.use("/mid", async (_, next) => {
+app.use("/me", async (_, next) => {
     console.log("1");
-    await next();
+});
+
+app.get("/me", (c) => {
+    return c.text("zaaa");
+});
+
+app.use("*/*", async (c, next) => {
     console.log("2");
-});
-
-app.get("/any", (c) => {
-    return c.json({
-        data: "/any1",
-    });
-});
-
-app.use("/any", async (_, next) => {
-    console.log("3");
     await next();
-    console.log("4");
+});
+
+app.get("/me/you", (c) => {
+    return c.text("zaaa");
 });
 
 serve(

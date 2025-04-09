@@ -1,5 +1,6 @@
 local Server = require("lib/server")
 local app = require("lib/app").new()
+local logger = require("lib/middleware/logger")
 
 local function heavy_computation(size)
     local numbers = {}
@@ -24,6 +25,8 @@ local function heavy_computation(size)
 end
 
 
+app:use("*", logger())
+
 -- Registering static files
 --
 app:get("/", function(c)
@@ -42,39 +45,32 @@ app:get("/luvit.webp", function(c)
     return c:serve({ path = "./public/luvit.webp" })
 end)
 
-app:use("/any", function(c, next)
-    c:header("MyHeader1", "MyHeader1")
-    print("-1")
+--
+
+
+------ works ----
+app:use("/me", function(c, next)
+    print("ALWAYS THERE 1" .. c.req.path)
     next()
-    print("-2")
+    print("ALWAYS THERE 4" .. c.req.path)
 end)
 
-
-app:use("/any", function(c, next)
-    c:header("MyHeader2", "MyHeader2")
-    print("--3")
+app:use("/me", function(c, next)
+    print("ALWAYS THERE 2" .. c.req.path)
     next()
-    print("--4")
+    print("ALWAYS THERE 3" .. c.req.path)
 end)
 
-app:get("/any",
-    function(c)
-        print("---handler")
-        return c:json({
-            get = "ok2"
-        })
-    end
-)
+-----
 
-app:post("/any",
-    function(c)
-        print("---handler")
-        return c:json({
-            get = "ok-post"
-        })
-    end
-)
+app:get("/me", function(c) return c:text(c.req.path) end)              -- 404 not expected
 
-Server.new(app):start({
-    port = 3000
-})
+app:use("*/*", function(c) print("ALWAYS THERE 2 " .. c.req.path) end) -- 404 expected
+
+app:get("/me/you", function(c) return c:html(c.req.path) end)          -- 200 expected
+
+app:get("/me/you/us", function(c) return c:html(c.req.path) end)       -- 200 expected
+
+app:get("/no-response", function(c) print("this route does not send a response") end)
+
+Server.new(app):start()

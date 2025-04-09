@@ -52,8 +52,7 @@ function Server:start(server_config)
         self._port = server_config.port or self._port
     end
     local server = assert(socket.bind(self._host, self._port), "Failed to bind server!")
-    local ip, port = server:getsockname()
-    print("[Started] : \27[34m" .. ip .. ":" .. port .. "\27[0m")
+    print("\27[90m[Started]\27[0m \27[34m" .. "http://" .. self._host .. ":" .. self._port .. "\27[0m")
     main(server, self._app)
 end
 
