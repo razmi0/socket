@@ -14,7 +14,6 @@
 - [ ] : renderer
 - [ ] : prettyprint
 - [ ] : static
-  - static should be cache during registration phase
   - maybe that's why it is a middleware
 
 ```ts
