@@ -83,35 +83,29 @@ function App:all(path, ...)
     return self
 end
 
----@param err number|string|{[1] : number, [2] : string}
-local function err_handler(err)
-    local res = Response.new(client)
-    if type(err) == "number" then
-        res:setStatus(err)
-    elseif type(err) == "string" then
-        print("Unhandle internal error : " .. err)
-        res:setStatus(500)
-    elseif type(err) == "table" then
-        local code = err[0]
-        local err_str = err[1]
-        print("Unhandle internal error : " .. err_str)
-        res:setStatus(code)
-    end
-    res:send()
-end
-
 function App:_run(client)
+    ---@param err { [1] : number, [2] : Context, [3] : string? }
+    local function err_handler(err)
+        local res = err[2].res
+        if err[3] then
+            print(err[3])
+        end
+        res:setContentType("text/plain")
+        res:setStatus(err[1])
+        res:setBody(tostring(err[1]) .. " " .. res:msgFromCode(err[1]))
+        res:send()
+    end
     xpcall(
         function()
             local req = Request.new(client)
             local res = Response.new(client)
             local ctx = Context.new(req, res)
             if not req or not res or not ctx then
-                error(400)
+                error({ 400, ctx })
             end
             local ok = req:_parse()
             if not ok then
-                error(400)
+                error({ 400, ctx })
             end
             -- Find the route handler in the router no magic
             local handlers, found_path, params = self._router:_match(req.method, req.path)
@@ -119,16 +113,16 @@ function App:_run(client)
             req._params = params
             -- Not found case
             if not found_path then
-                error(404)
+                error({ 404, ctx })
             end
             -- Wrong methods (found path but not handlers)
             if not handlers then
-                error(405)
+                error({ 405, ctx })
             end
             -- We found a route with user callbacks
             local handler_response = self._router:_run_route(handlers, ctx)
             if not handler_response then
-                error({ 500, ctx.req.path .. "Your handler didn't return a response" })
+                error({ 500, ctx, "No response has been sent " .. ctx.req.method .. ":" .. ctx.req.path })
             end
             -- all went well, handler response is sent
             handler_response:send()
