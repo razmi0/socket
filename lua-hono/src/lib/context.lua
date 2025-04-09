@@ -2,6 +2,13 @@ local cjson = require "cjson"
 local mime = require 'mimetypes'
 local File = require('lib/file')
 
+-- Context encapsulates response and request mutability
+-- class Context use set and get "proxies" on req and res ; setting c.finalized and this.#isFresh
+
+-- a middleware can return a response, if so Response
+-- if c.finalized then no Response is set
+
+
 ---@class Context
 ---@field req Request The request object
 ---@field res Response The response object
@@ -12,7 +19,8 @@ local File = require('lib/file')
 ---@field json fun(table: table): Response Set the body of the response to a JSON string
 ---@field html fun(html: string): Response Set the body of the response to an HTML string
 ---@field status fun(status: number): Response Set the status code of the response
----@field notFound fun(): Response Set the status code to 404 and the body to "Not Found"
+---@field notFound fun(): Response Set the status code to 404 and the body to "404 Not Found"
+---@field internalErr fun(): Response Set the status code to 500 and the body to "500 Internal Server Error"
 ---@field set fun(key: string, value: string): nil Set a key-value pair in the context
 ---@field get fun(key: string): string Get a key-value pair from the context
 ---@field new fun(request: Request, response: Response): Context Create a new context
@@ -108,6 +116,15 @@ function Context:notFound()
     return self.res
 end
 
+---@return Response The response object
+function Context:internalErr()
+    -- setContentType fun(self: Response, contentType: string): Response Set the Content-Type header
+    self.res:setContentType("text/plain")
+    self.res:setStatus(500)
+    self.res:setBody("500 Internal Server Error")
+    return self.res
+end
+
 ---@param key string The key to set in the context
 ---@param value string The value to set in the context
 function Context:set(key, value)
@@ -123,13 +140,6 @@ end
 --------------------------------
 -- Serve Static Files
 --------------------------------
-
-
-
-
----@class ServeStaticConfig
----@field path string The path to the file to serve
----@field root string The root directory to serve the file from
 
 ---@param config ServeStaticConfig The configuration for the serve function
 ---@return Response The response object
