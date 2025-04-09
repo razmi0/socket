@@ -25,52 +25,55 @@ local function heavy_computation(size)
 end
 
 
-app:use("*", logger())
 
--- Registering static files
+
+--#region Registering static files
 --
-app:get("/", function(c)
-    return c:serve({ path = "./index.html" })
-end)
+-- app
+--     :get("/", function(c)
+--         return c:serve({ path = "./index.html" })
+--     end)
+--     :get("/index.js", function(c)
+--         return c:serve({ path = "./public/index.js" })
+--     end)
+--     :get("/index.css", function(c)
+--         return c:serve({ path = "./public/index.css" })
+--     end)
+--     :get("/luvit.webp", function(c)
+--         return c:serve({ path = "./public/luvit.webp" })
+--     end)
+--#endregion
 
-app:get("/index.js", function(c)
-    return c:serve({ path = "./public/index.js" })
-end)
-
-app:get("/index.css", function(c)
-    return c:serve({ path = "./public/index.css" })
-end)
-
-app:get("/luvit.webp", function(c)
-    return c:serve({ path = "./public/luvit.webp" })
-end)
-
---
-
+------ not works ----
+-- app:use("*", logger())
+------
 
 ------ works ----
-app:use("/me", function(c, next)
-    print("ALWAYS THERE 1" .. c.req.path)
-    next()
-    print("ALWAYS THERE 4" .. c.req.path)
-end)
 
-app:use("/me", function(c, next)
-    print("ALWAYS THERE 2" .. c.req.path)
-    next()
-    print("ALWAYS THERE 3" .. c.req.path)
-end)
+-- app:use("/me", function(c, next)
+--     print("1" .. c.req.path)
+--     next()
+--     print("4" .. c.req.path)
+-- end)
+
+app:use("/me", logger())
+
+-- app:get("/me", function(c)
+--     return c:text(c.req.path .. "2")
+-- end) -- 200
+
 
 -----
 
-app:get("/me", function(c) return c:text(c.req.path) end)              -- 404 not expected
 
-app:use("*/*", function(c) print("ALWAYS THERE 2 " .. c.req.path) end) -- 404 expected
+-- app:use("*/*", function(c) print("ALWAYS THERE 2 " .. c.req.path) end) -- 404 expected
 
-app:get("/me/you", function(c) return c:html(c.req.path) end)          -- 200 expected
+-- app:get("/me/you", function(c) return c:html(c.req.path) end)          -- 200 expected
 
-app:get("/me/you/us", function(c) return c:html(c.req.path) end)       -- 200 expected
+-- app:get("/me/you/us", function(c) return c:html(c.req.path) end)       -- 200 expected
 
-app:get("/no-response", function(c) print("this route does not send a response") end)
+-- app:get("/no-response", function(c) print("this route does not send a response") end)
 
+
+-- app:see_routes()
 Server.new(app):start()
