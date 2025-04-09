@@ -11,28 +11,33 @@ function heavyComputation(size: number) {
     return sum; // the sum
 }
 
-app.get("/heavy", (c) => {
-    const result = heavyComputation(100);
-    return c.json({
-        data: result,
-    });
-});
+// app.get("/heavy", (c) => {
+//     const result = heavyComputation(100);
+//     return c.json({
+//         data: result,
+//     });
+// });
 
-app.use("/me", async (_, next) => {
-    console.log("1");
-});
+// app.use("/me", async (_, next) => {
+//     console.log("1");
+// });
 
-app.get("/me", (c) => {
-    return c.text("zaaa");
-});
+// app.get("/me", (c) => {
+//     return c.text("zaaa");
+// });
 
-app.use("*/*", async (c, next) => {
-    console.log("2");
+// app.use("*/*", async (c, next) => {
+//     console.log("2");
+//     await next();
+// });
+
+app.use("/me", async (c, next) => {
+    console.log("me");
     await next();
 });
 
 app.get("/me/you", (c) => {
-    return c.text("zaaa");
+    return c.text("errr");
 });
 
 serve(
