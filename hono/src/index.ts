@@ -1,7 +1,17 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { SmartRouter } from "hono/router/smart-router";
+import { TrieRouter } from "hono/router/trie-router";
 
 const app = new Hono();
+
+app.get("/cool", (c) => {
+    return c.text("coucou app");
+});
+
+app.router = new SmartRouter({
+    routers: [new TrieRouter()],
+});
 
 function heavyComputation(size: number) {
     const numbers = Array.from({ length: size }, (_, i) => i + 1); // building [0..n+1] array length size
@@ -11,34 +21,26 @@ function heavyComputation(size: number) {
     return sum; // the sum
 }
 
-// app.get("/heavy", (c) => {
-//     const result = heavyComputation(100);
-//     return c.json({
-//         data: result,
-//     });
-// });
-
-// app.use("/me", async (_, next) => {
-//     console.log("1");
-// });
-
-// app.get("/me", (c) => {
-//     return c.text("zaaa");
-// });
-
-// app.use("*/*", async (c, next) => {
-//     console.log("2");
-//     await next();
-// });
-
-app.use("/me", async (c, next) => {
-    console.log("me");
+app.use("q/*", async (c, next) => {
+    console.log("m_1");
     await next();
+    console.log("m_2");
 });
 
-app.get("/me/you", (c) => {
-    return c.text("errr");
+app.get("q/*", async (c, next) => {
+    console.log("m_3");
+    await next();
+    console.log("m_4");
 });
+
+app.get("q/1", async (c) => {
+    return c.text("hi");
+});
+app.get("q/2/3/4", async (c) => {
+    return c.text("hi");
+});
+
+console.log(app.routes);
 
 serve(
     {

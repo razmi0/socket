@@ -1,8 +1,10 @@
 local inspect = require("inspect")
-local Request = require("lib/request")
-local Response = require("lib/response")
-local Context = require("lib/context")
-local Router = require("lib/router")
+local Request = require("lib.request")
+local Response = require("lib.response")
+local Context = require("lib.context")
+local Router = require("lib.router")
+local compose = require("lib.compose")
+
 
 ---@class App
 ---@field _router Router
@@ -21,65 +23,39 @@ function App.new()
     return instance
 end
 
----@param cleanKey? string
-function App:see_routes(cleanKey)
-    local function clean(node)
-        if cleanKey then
-            node[cleanKey] = nil
-        end
-        if node.param then
-            for _, child in pairs(node.param) do
-                clean(child)
-            end
-        end
-        if node.static then
-            for _, child in pairs(node.static) do
-                clean(child)
-            end
-        end
-    end
-
-    local printable = self._router.routes
-    for method, _ in pairs(printable) do
-        clean(printable[method])
-    end
-
-    print(inspect(printable))
-end
-
 function App:use(path, ...)
     local middlewares = { ... }
-    self._router:_add_route("USE", path, middlewares)
+    self._router:add("USE", path, middlewares)
     return self
 end
 
 function App:get(path, ...)
     local handlers = { ... }
-    self._router:_add_route("GET", path, handlers)
+    self._router:add("GET", path, handlers)
     return self
 end
 
 function App:post(path, ...)
     local handlers = { ... }
-    self._router:_add_route("POST", path, handlers)
+    self._router:add("POST", path, handlers)
     return self
 end
 
 function App:put(path, ...)
     local handlers = { ... }
-    self._router:_add_route("PUT", path, handlers)
+    self._router:add("PUT", path, handlers)
     return self
 end
 
 function App:delete(path, ...)
     local handlers = { ... }
-    self._router:_add_route("DELETE", path, handlers)
+    self._router:add("DELETE", path, handlers)
     return self
 end
 
 function App:all(path, ...)
     local handlers = { ... }
-    self._router:_add_route("ALL", path, handlers)
+    self._router:add("ALL", path, handlers)
     return self
 end
 
@@ -108,11 +84,11 @@ function App:_run(client)
                 error({ 400, ctx })
             end
             -- Find the route handler in the router no magic
-            local handlers, found_path, params = self._router:_match(req.method, req.path)
+            local handlers, params, matched = self._router:match(req.method, req.path)
             -- Reference params in Request & Context ( default/reset to {} )
             req._params = params
             -- Not found case
-            if not found_path then
+            if not matched then
                 error({ 404, ctx })
             end
             -- Wrong methods (found path but not handlers)
@@ -120,7 +96,7 @@ function App:_run(client)
                 error({ 405, ctx })
             end
             -- We found a route with user callbacks
-            local handler_response = self._router:_run_route(handlers, ctx)
+            local handler_response = compose(handlers, ctx)
             if not handler_response then
                 error({ 500, ctx, "No response has been sent " .. ctx.req.method .. ":" .. ctx.req.path })
             end
