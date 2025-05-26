@@ -1,4 +1,4 @@
-local PATTERN_GROUPS = require("lib.trie-router.utils.pattern")
+local PATTERN_GROUPS = require("lib/trie-router/utils/patterns")
 
 ---@alias DynamicData { optionnal : true|nil, pattern : string|nil }
 ---@param str string

@@ -4,6 +4,10 @@ local Response = require("lib.response")
 local Context = require("lib.context")
 local Router = require("lib.router")
 local compose = require("lib.compose")
+local HTTP400 = require("lib.http-exception.bad-request")
+local HTTP404 = require("lib.http-exception.not-found")
+local HTTP405 = require("lib.http-exception.method-not-allowed")
+local HTTP500 = require("lib.http-exception.internal-server-error")
 
 
 ---@class App
@@ -60,51 +64,43 @@ function App:all(path, ...)
 end
 
 function App:_run(client)
-    ---@param err { [1] : number, [2] : Context, [3] : string? }
-    local function err_handler(err)
-        local res = err[2].res
-        if err[3] then
-            print(err[3])
-        end
-        res:setContentType("text/plain")
-        res:setStatus(err[1])
-        res:setBody(tostring(err[1]) .. " " .. res:msgFromCode(err[1]))
-        res:send()
-    end
-    xpcall(
-        function()
-            local req = Request.new(client)
-            local res = Response.new(client)
-            local ctx = Context.new(req, res)
-            if not req or not res or not ctx then
-                error({ 400, ctx })
-            end
-            local ok = req:_parse()
-            if not ok then
-                error({ 400, ctx })
-            end
-            -- Find the route handler in the router no magic
-            local handlers, params, matched = self._router:match(req.method, req.path)
-            -- Reference params in Request & Context ( default/reset to {} )
-            req._params = params
-            -- Not found case
-            if not matched then
-                error({ 404, ctx })
-            end
-            -- Wrong methods (found path but not handlers)
-            if not handlers then
-                error({ 405, ctx })
-            end
-            -- We found a route with user callbacks
-            local handler_response = compose(handlers, ctx)
-            if not handler_response then
-                error({ 500, ctx, "No response has been sent " .. ctx.req.method .. ":" .. ctx.req.path })
-            end
-            -- all went well, handler response is sent
-            handler_response:send()
-        end,
-        err_handler
-    )
+    local req, res = Request.new(client), Response.new(client)
+    local ctx = Context.new(req, res)
+    local err_handler = HTTP404
+
+    if not req or not res or not ctx then err_handler = HTTP500 end
+    local ok = req:_parse()
+    if not ok then err_handler = HTTP400 end
+
+    local mws, params = self._router:match(req.method, req.path)
+    req._params = params
+    local x = compose(handlers, ctx)
+
+    print(inspect(mws))
+    print("x : ", inspect(x))
+
+    -- if err_handler then
+    --     handlers[#handlers + 1] = err_handler
+    --     local handler_response = compose(handlers, ctx)
+    --     handler_response:send()
+    --     return
+    -- end
+
+
+    -- if matched and not matchMethod then
+    --     handlers[#handlers + 1] = HTTP405
+    --     local handler_response = compose(handlers, ctx)
+    --     handler_response:send()
+    -- end
+
+    -- if not matched and not matchMethod then
+    --     handlers[#handlers + 1] = HTTP404
+    --     local handler_response = compose(handlers, ctx)
+    --     handler_response:send()
+    -- end
+
+    local response = err_handler(ctx)
+    response:send()
 end
 
 return App

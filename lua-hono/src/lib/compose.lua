@@ -3,7 +3,7 @@ local inspect = require("inspect")
 
 local function compose(chain, context)
     local handler = chain[#chain]
-    ---@type Response|nil
+    ---@type Response
     local response = context.res
     local function dispatch(i)
         if i > #chain then return nil end
@@ -26,10 +26,6 @@ local function compose(chain, context)
             end
             -- Execute middleware and ignore its return value
             local r = chain[i](context, next)
-            if r then
-                error("mw returned something")
-                return
-            end
         end
     end
 
