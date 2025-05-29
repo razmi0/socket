@@ -1,11 +1,15 @@
----@alias HTTPMethod string|"USE"|"ALL"
-
+---@alias HTTPMethod string|"ALL"
+--
 ---@class Router
 ---@field trie Trie internal trie router
-local Router   = {}
+---@field add fun(self: Trie, method: HTTPMethod, path: string, ...: fun(...: any))
+---@field match fun(self: Trie, method: HTTPMethod, path: string): TrieLeaf[], table<string, string>
+--
+local Trie = require("lib/trie-router/trie")
+
+local Router = {}
 Router.__index = Router
-Router.__name  = "TrieRouter"
-local Trie     = require("lib/trie-router/trie")
+Router.__name = "TrieRouter"
 
 function Router.new()
     return setmetatable({
@@ -13,18 +17,10 @@ function Router.new()
     }, Router)
 end
 
--- Add a route to trie router
----@param method HTTPMethod
----@param path string
----@param ... fun(...: any): any
 function Router:add(method, path, ...)
     self.trie:insert(method, path, ...)
 end
 
----Find a route in the trie router
----@param method HTTPMethod
----@param path string
----@return TrieLeaf[] matches,  table<string, string>| {} params
 function Router:match(method, path)
     return self.trie:search(method, path)
 end

@@ -9,14 +9,16 @@ local HTTP404 = require("lib.http-exception.not-found")
 local HTTP405 = require("lib.http-exception.method-not-allowed")
 local HTTP500 = require("lib.http-exception.internal-server-error")
 
-
 ---@class App
 ---@field _router Router
 ---@field new fun():App
+---@field use fun(self: App, middleware: function): App
 ---@field get fun(self: App, path: string, callback: function): App
 ---@field post fun(self: App, path: string, callback: function): App
----@field _run fun(self: App, client: unknown): nil
----@field use fun(self: App, middleware: function): App
+---@field put fun(self: App, path: string, callback: function): App
+---@field delete fun(self: App, path: string, callback: function): App
+---@field all fun(self: App, path: string, callback: function): App
+---@field _run fun(self: App, client: any): nil
 
 local App = {}
 App.__index = App
@@ -28,37 +30,37 @@ function App.new()
 end
 
 function App:use(path, ...)
-    local middlewares = { ... }
-    self._router:add("USE", path, middlewares)
+    local middlewares = {...}
+    self._router:add(nil, path, middlewares)
     return self
 end
 
 function App:get(path, ...)
-    local handlers = { ... }
+    local handlers = {...}
     self._router:add("GET", path, handlers)
     return self
 end
 
 function App:post(path, ...)
-    local handlers = { ... }
+    local handlers = {...}
     self._router:add("POST", path, handlers)
     return self
 end
 
 function App:put(path, ...)
-    local handlers = { ... }
+    local handlers = {...}
     self._router:add("PUT", path, handlers)
     return self
 end
 
 function App:delete(path, ...)
-    local handlers = { ... }
+    local handlers = {...}
     self._router:add("DELETE", path, handlers)
     return self
 end
 
 function App:all(path, ...)
-    local handlers = { ... }
+    local handlers = {...}
     self._router:add("ALL", path, handlers)
     return self
 end
@@ -68,15 +70,18 @@ function App:_run(client)
     local ctx = Context.new(req, res)
     local err_handler = HTTP404
 
-    if not req or not res or not ctx then err_handler = HTTP500 end
+    if not req or not res or not ctx then
+        err_handler = HTTP500
+    end
     local ok = req:_parse()
-    if not ok then err_handler = HTTP400 end
+    if not ok then
+        err_handler = HTTP400
+    end
 
     local mws, params = self._router:match(req.method, req.path)
     req._params = params
-    local x = compose(handlers, ctx)
+    local x = compose(mws, ctx)
 
-    print(inspect(mws))
     print("x : ", inspect(x))
 
     -- if err_handler then
@@ -85,7 +90,6 @@ function App:_run(client)
     --     handler_response:send()
     --     return
     -- end
-
 
     -- if matched and not matchMethod then
     --     handlers[#handlers + 1] = HTTP405

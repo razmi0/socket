@@ -2,39 +2,38 @@
 ---@field private root table
 ---@field order integer
 ---@field new fun(): Trie
----@field insert fun(self: Trie, method: HTTPMethod, path: string, ...: fun(...: any): any)
+---@field insert fun(self: Trie, method: HTTPMethod, path: string, ...: fun(...: any))
 ---@field search fun(self: Trie, method: HTTPMethod, path: string): TrieLeaf[], table<string, string>
-
+--
 ---@class TrieNode
 ---@field mws TrieLeaf[]
 ---@field static table<string, TrieNode>
 ---@field dynamic TrieDynamicNode[]
----@field leaf? TrieLeaf[]
-
+---@field leaf TrieLeaf[]
+--
 ---@class TrieDynamicNode
 ---@field node TrieNode
----@field pattern? string
----@field score? integer
-
+---@field pattern string
+---@field score integer
+--
 ---@class TrieLeaf
 ---@field handlers fun()[]
 ---@field method HTTPMethod
 ---@field order integer
 ---@field possibleKeys string[]
----@field params table<string, string>?
-
-local parse  = require("lib/trie-router/utils/parse-path")
-local split  = require("lib/trie-router/utils/split-path")
+---@field params table<string, string>
+--
+local parse = require("lib/trie-router/utils/parse-path")
+local split = require("lib/trie-router/utils/split-path")
 local expand = require("lib/trie-router/utils/expand-optional")
-local sort   = require("lib/trie-router/utils/sort")
-local clone  = require("lib/trie-router/utils/clone")
-
+local sort = require("lib/trie-router/utils/sort")
+local clone = require("lib/trie-router/utils/clone")
 
 ---@param nodes TrieDynamicNode[]
----@param ... fun(node: TrieDynamicNode, best: TrieDynamicNode?): boolean
+---@param ... fun(node: TrieDynamicNode, best: TrieDynamicNode): boolean
 ---@return TrieNode
 local function findBest(nodes, ...)
-    local validators = { ... }
+    local validators = {...}
     local best
     for _, d in ipairs(nodes or {}) do
         local valid = true
@@ -82,7 +81,7 @@ end
 ---@param path string
 ---@param ... fun(...: any): any
 function Trie:insert(method, path, ...)
-    local fns = { ... }
+    local fns = {...}
     local variants = {}
     expand(split(path), 1, {}, variants, false)
 
@@ -138,16 +137,20 @@ function Trie:search(method, path)
     local node, parts, values, i, matched, queue = self.root, split(path), {}, 1, false, {}
 
     local methodCheck = function(mw)
-        return mw.method == "USE" or method == mw.method or mw.method == "ALL"
+        return mw.method == nil or method == mw.method or mw.method == "ALL"
     end
 
     while i <= #parts do
-        local part, matching = parts[i], function() i, matched = i + 1, true end
+        local part, matching = parts[i], function()
+            i, matched = i + 1, true
+        end
         matched = false
 
         -- mws collection
         for _, mw in ipairs(node.mws) do
-            if methodCheck(mw) then queue[#queue + 1] = mw end
+            if methodCheck(mw) then
+                queue[#queue + 1] = mw
+            end
         end
 
         -- if static (O1) else dynamic (0n)
@@ -156,15 +159,16 @@ function Trie:search(method, path)
             matching()
         else
             local remain = #parts - i
-            local best = findBest(
-                node.dynamic,
-                -- pattern validation
-                function(nd) return not nd.pattern or part:match(nd.pattern) end,
-                -- enough segments left to match its branch
-                function(nd) return remain >= (nd.score or 0) end,
-                -- longer branch = more specific = better
-                function(nd, best) return not best or (nd.score or 0) > (best.score or 0) end
-            )
+            local best = findBest(node.dynamic, -- pattern validation
+            function(nd)
+                return not nd.pattern or part:match(nd.pattern)
+            end, -- enough segments left to match its branch
+            function(nd)
+                return remain >= (nd.score or 0)
+            end, -- longer branch = more specific = better
+            function(nd, best)
+                return not best or (nd.score or 0) > (best.score or 0)
+            end)
             if best then
                 values[#values + 1] = part
                 node = best
@@ -194,7 +198,9 @@ function Trie:search(method, path)
                 end
             end
         end
-        if not matched then break end
+        if not matched then
+            break
+        end
     end
 
     -- leaf mws collection
