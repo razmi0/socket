@@ -22,6 +22,7 @@
 ---@field order integer
 ---@field possibleKeys string[]
 ---@field params? table<string, string>
+---@field path string
 --
 
 local parse = require("lib/trie-router/utils/parse-path")
@@ -114,7 +115,8 @@ function Trie:insert(method, path, ...)
                     handlers = clone(fns),
                     order = nextOrder(self),
                     method = method,
-                    possibleKeys = keys
+                    possibleKeys = keys,
+                    path = path
                 }
                 return
             end
@@ -125,7 +127,8 @@ function Trie:insert(method, path, ...)
             handlers = clone(fns),
             order = nextOrder(self),
             method = method,
-            possibleKeys = keys
+            possibleKeys = keys,
+            path = path
         }
         node.leaf = rec
     end

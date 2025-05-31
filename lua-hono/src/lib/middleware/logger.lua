@@ -13,8 +13,8 @@ local logger = function()
         local startTime = os.clock()
 
         print(
-            colorize("<--", "1;34"),
-            colorize(pad(method, 6), "1;36"),
+            colorize("<--", "1;30"),
+            colorize(pad(method, 6), "1;33"),
             colorize(path, "0;37")
         )
 
@@ -29,9 +29,9 @@ local logger = function()
             "0;37"
 
         print(
-            colorize("-->", "1;34"),
+            colorize("-->", "1;30"),
             colorize(tostring(status), statusColor),
-            colorize(time, "1;36")
+            colorize(time, "1;30")
         )
     end
 end

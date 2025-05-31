@@ -20,7 +20,7 @@ local function compose(mws, ctx)
 
         local called = false
         local function next()
-            if called then return end
+            if called or ctx._finalized then return end
             called = true
             dispatch(i + 1)
         end
