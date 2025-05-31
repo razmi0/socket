@@ -59,7 +59,9 @@ end
 
 function App:all(path, ...)
     local handlers = { ... }
-    self._router:add("ALL", path, handlers)
+    for _, m in ipairs({ "POST", "GET", "PUT", "DELETE", "PATCH" }) do
+        self._router:add(m, path, handlers)
+    end
     return self
 end
 
