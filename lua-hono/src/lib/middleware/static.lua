@@ -1,5 +1,5 @@
 local mime = require 'mimetypes'
-local File = require('../file')
+local File = require('lib.file')
 
 
 

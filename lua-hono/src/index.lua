@@ -4,7 +4,6 @@ local logger = require("lib.middleware.logger")
 
 app:use("*", logger())
 app:get("/hello", function(c)
-    print("handler")
     return c:json({ message = "Hello" })
 end)
 

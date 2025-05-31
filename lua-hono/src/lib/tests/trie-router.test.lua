@@ -1,7 +1,6 @@
 package.path = "src/?.lua;src/?/init.lua;" .. package.path
 local Tx = require("lib/tests/tx")
 local Router = require("lib/router")
-local inspect = require("inspect")
 
 Tx.mute = false
 
