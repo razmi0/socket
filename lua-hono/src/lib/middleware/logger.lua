@@ -3,7 +3,7 @@ local function colorize(text, colorCode)
 end
 
 local function pad(str, len)
-    return str .. string.rep(" ", math.max(0, len - #str))
+    return str .. "\27[0m" .. string.rep(" ", math.max(0, len - #str))
 end
 
 local logger = function()
@@ -14,7 +14,7 @@ local logger = function()
 
         print(
             colorize("<--", "1;30"),
-            colorize(pad(method, 6), "1;36"),
+            colorize(pad(method, 6), "4;37"),
             colorize(path, "0;37")
         )
 
@@ -31,7 +31,7 @@ local logger = function()
         print(
             colorize("-->", "1;30"),
             colorize(tostring(status), statusColor),
-            colorize(time, "1;30")
+            colorize(time, "2;90")
         )
     end
 end
