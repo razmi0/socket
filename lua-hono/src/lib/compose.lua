@@ -1,6 +1,8 @@
 local inspect = require("inspect")
+local HTTP404 = require("lib.http-exception.not-found")
+local HTTP405 = require("lib.http-exception.method-not-allowed")
 
-local function compose(mws, ctx)
+local function compose(mws, ctx, match)
     local hs, result = {}, nil
 
     for _, mw in ipairs(mws) do
@@ -9,13 +11,28 @@ local function compose(mws, ctx)
         end
     end
 
+    -- err 500 or 400
+    if ctx._err_handler then
+        hs[#hs] = ctx._err_handler
+    end
+
     local function is_response(obj)
         local mt = getmetatable(obj)
         return mt and mt.__name == "Response"
     end
 
     local function dispatch(i)
-        if i > #hs then return end
+        if i > #hs then
+            if not ctx._finalized then
+                if match then
+                    HTTP405(ctx)
+                else
+                    HTTP404(ctx)
+                end
+            end
+            return
+        end
+
         local h = hs[i]
 
         local called = false
@@ -32,10 +49,6 @@ local function compose(mws, ctx)
     end
 
     dispatch(1)
-
-    if not ctx._finalized then
-        print("no response handler, do stuff here")
-    end
 end
 
 

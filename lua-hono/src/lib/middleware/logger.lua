@@ -14,7 +14,7 @@ local logger = function()
 
         print(
             colorize("<--", "1;30"),
-            colorize(pad(method, 6), "1;33"),
+            colorize(pad(method, 6), "1;36"),
             colorize(path, "0;37")
         )
 

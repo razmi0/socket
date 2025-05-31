@@ -25,7 +25,8 @@ local File = require('lib/file')
 ---@field status fun(status: number): Response Set the status code of the response
 ---@field serve fun(config: ServeStaticConfig): Response Serve a static file
 ---@field redirect fun(url: string): Response Redirect to a URL
----@field private _finalized boolean
+---@field  _finalized boolean
+---@field  _err_handler fun():Response|nil
 
 
 local Context = {}
@@ -40,6 +41,7 @@ function Context.new(request, response)
     instance.res = response
     instance.kvSpace = {}
     instance._finalized = false
+    instance._err_handler = nil
     return instance
 end
 

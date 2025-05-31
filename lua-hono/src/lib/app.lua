@@ -5,8 +5,6 @@ local Context = require("lib.context")
 local Router = require("lib.router")
 local compose = require("lib.compose")
 local HTTP400 = require("lib.http-exception.bad-request")
-local HTTP404 = require("lib.http-exception.not-found")
-local HTTP405 = require("lib.http-exception.method-not-allowed")
 local HTTP500 = require("lib.http-exception.internal-server-error")
 
 ---@class App
@@ -68,14 +66,13 @@ end
 function App:_run(client)
     local req, res = Request.new(client), Response.new(client)
     local ctx = Context.new(req, res)
-    local err_handler = HTTP404
 
-    if not req or not res or not ctx then err_handler = HTTP500 end
-    if not req:_parse() then err_handler = HTTP400 end
+    if not req or not res or not ctx then ctx._err_handler = HTTP500 end
+    if not req:_parse() then ctx._err_handler = HTTP400 end
 
     local mws, params, match = self._router:match(req.method, req.path)
     req._params = params
-    compose(mws, ctx)
+    compose(mws, ctx, match)
     ctx.res:send()
 end
 
