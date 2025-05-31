@@ -1,6 +1,7 @@
 package.path = "src/?.lua;src/?/init.lua;" .. package.path
 local Tx = require("lib/tests/tx")
 local Router = require("lib/router")
+local inspect = require("inspect")
 
 Tx.mute = false
 
@@ -31,6 +32,15 @@ Tx.describe("static", function()
         Tx.equal(p, {})
     end)
 
+    Tx.it("should not match unknown route", function()
+        router:add("GET", "/path/to/something", function()
+            return 1
+        end)
+        local x, p = router:match("GET", "/path/to/unknown")
+        Tx.equal(x, {})
+        Tx.equal(p, {})
+    end)
+
     Tx.it("should match route with trailing slash", function()
         router:add("GET", "/test", function()
             return "no slash"
@@ -49,11 +59,11 @@ Tx.describe("static", function()
 end)
 
 Tx.describe("methods", function()
-    Tx.it("system should filter by method and return empty", function()
+    Tx.it("should filter by method and return empty", function()
         router:add("GET", "/hello", function()
             return "hello"
         end)
-        local x, p = router:match("POST", "/hello")
+        local x, p, fm = router:match("POST", "/hello")
         Tx.equal(x, {})
         Tx.equal(p, {})
     end)
@@ -210,6 +220,44 @@ Tx.describe("wildcards", function()
     end)
 end)
 
+Tx.describe("matching", function()
+    Tx.it("static - should return full path match", function()
+        router:add("GET", "/path/to/something", function() return "static" end)
+
+        local x, p, fm = router:match("GET", "/path/to/something")
+        Tx.equal(x[1].handlers[1](), "static")
+        Tx.equal(p, {})
+        Tx.equal(fm, true)
+    end)
+
+    Tx.it("dynamic - should return full path match", function()
+        router:add("POST", "/path/to/:param", function() return "dynamic" end)
+
+        local x2, p2, fm2 = router:match("POST", "/path/to/123")
+        Tx.equal(x2[1].handlers[1](), "dynamic")
+        Tx.equal(p2["param"], "123")
+        Tx.equal(fm2, true)
+    end)
+
+    Tx.it("static - should not return full path match", function()
+        router:add("GET", "/path/to/something", function() return "static" end)
+
+        local x, p, fm = router:match("GET", "/path")
+        Tx.equal(x, {})
+        Tx.equal(p, {})
+        Tx.equal(fm, false)
+    end)
+
+    Tx.it("wild - should not return full path match", function()
+        router:add("PUT", "/path/*", function() return "wild" end)
+
+        local x3, p3, fm3 = router:match("PUT", "/path/whatever")
+        Tx.equal(x3[1].handlers[1](), "wild")
+        Tx.equal(p3["*"], "whatever")
+        Tx.equal(fm3, false)
+    end)
+end)
+
 Tx.describe("priority", function()
     Tx.it("should prefer static over param", function()
         router:add("GET", "/user/me", function()
@@ -361,7 +409,7 @@ Tx.describe("mw-basics", function()
                 h()
             end
         end
-        Tx.equal(step, {"mw", "handler"})
+        Tx.equal(step, { "mw", "handler" })
     end)
 
     Tx.it("should call middleware with wildcard", function()

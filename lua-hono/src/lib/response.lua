@@ -48,7 +48,7 @@ local default_response = {
     _headers = {
         ["Content-Type"] = "application/json",
         ["Content-Length"] = "0",
-        ["Server"] = "Raz",
+        ["X-Powered-By"] = "Raz",
         ["Date"] = os.date("%a, %d %b %Y %H:%M:%S GMT"),
         ["Last-Modified"] = os.date("%a, %d %b %Y %H:%M:%S GMT"),
     }

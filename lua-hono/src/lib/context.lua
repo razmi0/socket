@@ -2,13 +2,6 @@ local cjson = require "cjson"
 local mime = require 'mimetypes'
 local File = require('lib/file')
 
--- Context encapsulates response and request mutability
--- class Context use set and get "proxies" on req and res ; setting c.finalized and this.#isFresh
-
--- a middleware can return a response, if so Response
--- if c.finalized then no Response is set
-
-
 ---@class Context
 ---@field req Request The request object
 ---@field res Response The response object
@@ -32,6 +25,7 @@ local File = require('lib/file')
 ---@field status fun(status: number): Response Set the status code of the response
 ---@field serve fun(config: ServeStaticConfig): Response Serve a static file
 ---@field redirect fun(url: string): Response Redirect to a URL
+---@field private _finalized boolean
 
 
 local Context = {}
@@ -45,6 +39,7 @@ function Context.new(request, response)
     instance.req = request
     instance.res = response
     instance.kvSpace = {}
+    instance._finalized = false
     return instance
 end
 

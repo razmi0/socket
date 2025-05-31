@@ -1,37 +1,42 @@
 local inspect = require("inspect")
 
 local function compose(mws, ctx)
-    print(inspect(mws))
+    local hs, result = {}, nil
+
+    for _, mw in ipairs(mws) do
+        for _, h in ipairs(mw.handlers[1]) do
+            hs[#hs + 1] = h
+        end
+    end
+
+    local function is_response(obj)
+        local mt = getmetatable(obj)
+        return mt and mt.__name == "Response"
+    end
+
+    local function dispatch(i)
+        if i > #hs then return end
+        local h = hs[i]
+
+        local called = false
+        local function next()
+            if called then return end
+            called = true
+            dispatch(i + 1)
+        end
+
+        result = h(ctx, next)
+        if is_response(result) then
+            ctx._finalized = true
+        end
+    end
+
+    dispatch(1)
+
+    if not ctx._finalized then
+        print("no response handler, do stuff here")
+    end
 end
 
+
 return compose
-
--- local handler = chain[#chain]
---     ---@type Response
---     local response = context.res
---     local function dispatch(i)
---         if i > #chain then return nil end
---         if i == #chain then
---             local next = function()
---                 print("Did you make a next() call in an handler ?")
---                 return
---             end
---             -- Execute final handler and store the response
---             response = handler(context, next)
---         else
---             local nextCalled = false
---             local function next()
---                 if nextCalled then
---                     print("Did you called next() multiple times ?")
---                     return
---                 end
---                 nextCalled = true
---                 dispatch(i + 1)
---             end
---             -- Execute middleware and ignore its return value
---             local r = chain[i](context, next)
---         end
---     end
-
---     dispatch(1)
---     return response
