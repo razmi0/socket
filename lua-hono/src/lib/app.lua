@@ -65,6 +65,25 @@ function App:all(path, ...)
     return self
 end
 
+function App:on(methods, paths, ...)
+    local handlers = { ... }
+
+    methods =
+        type(methods) == "string" and { methods }
+        or methods
+        or { "POST", "GET", "PUT", "DELETE", "PATCH" }
+    paths =
+        type(paths) == "string" and { paths }
+        or paths
+        or { "/" }
+
+    for _, m in ipairs(methods) do
+        for _, p in ipairs(paths) do
+            self._router:add(m, p, handlers)
+        end
+    end
+end
+
 function App:_run(client)
     local req, res = Request.new(client), Response.new(client)
     local ctx = Context.new(req, res)
@@ -75,7 +94,12 @@ function App:_run(client)
     local mws, params, match = self._router:match(req.method, req.path)
     req._params = params
     compose(mws, ctx, match)
-    ctx.res:send()
+    if ctx._finalized then
+        ctx.res:send()
+    else
+        print()
+        HTTP500(ctx):send()
+    end
 end
 
 return App
