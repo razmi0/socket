@@ -12,19 +12,15 @@ local File = require('lib.file')
 ---@field root? string The root directory to serve the file from
 
 ---@param config ServeStaticConfig |fun(context : Context, next : fun()): ServeStaticConfig a function or an object to configure middleware
----@return fun(context : Context, next : fun())
+---@return fun(context : Context, next : fun()): Response
 local static = function(config)
-    local fn = function(c, next)
+    return function(c, next)
         local conf = type(config) == "function" and config(c, next) or config
-
         local root = type(conf) == "table" and conf.root or "./"
         local path = type(conf) == "table" and conf.path or "/index.html"
         if (path:sub(1, 1) ~= "/") or (root:sub(#root) ~= "/") then
             path = "/" .. path
         end
-
-        print(path, root)
-
         local fileFinder = File.new(root)
         local content = fileFinder:find(path)
         if not content then return c:notFound() end
@@ -34,7 +30,6 @@ local static = function(config)
         c.res:setBody(content)
         return c.res
     end
-    return fn
 end
 
 return static
