@@ -6,7 +6,10 @@ local static = require("lib/middleware/static")
 app:use("*", logger())
 app:on("GET", { "/", "/:file{^.+%.%w+}" }, static(
     function(c)
-        return "public" .. "/" .. (c.req:param("file") or "index.html")
+        return {
+            root = "public",
+            path = c.req:param("file") or "index.html"
+        }
     end)
 )
 

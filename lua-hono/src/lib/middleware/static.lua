@@ -8,24 +8,26 @@ local File = require('lib.file')
 ---@alias Path string
 
 ---@class ServeStaticConfig
----@field path? string The path to the file to serve
+---@field path? Path The path to the file to serve
 ---@field root? string The root directory to serve the file from
 
----@param config ServeStaticConfig|fun(context : Context, next : fun()): Path The configuration for the serve function
----@return function The response object
+---@param config ServeStaticConfig |fun(context : Context, next : fun()): ServeStaticConfig a function or an object to configure middleware
+---@return fun(context : Context, next : fun())
 local static = function(config)
-    local root = type(config) == "table" and config.root or "./"
-    local path = type(config) == "table" and config.path or "index.html"
     local fn = function(c, next)
-        if type(config) == "function" then
-            path = config(c, next)
+        local conf = type(config) == "function" and config(c, next) or config
+
+        local root = type(conf) == "table" and conf.root or "./"
+        local path = type(conf) == "table" and conf.path or "/index.html"
+        if (path:sub(1, 1) ~= "/") or (root:sub(#root) ~= "/") then
+            path = "/" .. path
         end
+
+        print(path, root)
 
         local fileFinder = File.new(root)
         local content = fileFinder:find(path)
-        if not content then
-            return c:notFound()
-        end
+        if not content then return c:notFound() end
         local mimeType = mime.guess(path)
         c.res:setContentType(mimeType)
         c.res:setStatus(200)

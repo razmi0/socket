@@ -67,7 +67,6 @@ local function compose(mws, ctx, match)
     end
     if not ctx._finalized then
         print("\27[38;5;208m[WARN]\27[0m : Did you forget to return a Response ?")
-        HTTP500(ctx)
     end
 end
 
