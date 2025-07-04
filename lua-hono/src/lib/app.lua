@@ -28,46 +28,38 @@ function App.new()
 end
 
 function App:use(path, ...)
-    local middlewares = { ... }
-    self._router:add(nil, path, middlewares)
+    self._router:add(nil, path, { ... })
     return self
 end
 
 function App:get(path, ...)
-    local handlers = { ... }
-    self._router:add("GET", path, handlers)
+    self._router:add("GET", path, { ... })
     return self
 end
 
 function App:post(path, ...)
-    local handlers = { ... }
-    self._router:add("POST", path, handlers)
+    self._router:add("POST", path, { ... })
     return self
 end
 
 function App:put(path, ...)
-    local handlers = { ... }
-    self._router:add("PUT", path, handlers)
+    self._router:add("PUT", path, { ... })
     return self
 end
 
 function App:delete(path, ...)
-    local handlers = { ... }
-    self._router:add("DELETE", path, handlers)
+    self._router:add("DELETE", path, { ... })
     return self
 end
 
 function App:all(path, ...)
-    local handlers = { ... }
     for _, m in ipairs({ "POST", "GET", "PUT", "DELETE", "PATCH" }) do
-        self._router:add(m, path, handlers)
+        self._router:add(m, path, { ... })
     end
     return self
 end
 
 function App:on(methods, paths, ...)
-    local handlers = { ... }
-
     methods =
         type(methods) == "string" and { methods }
         or methods
@@ -79,7 +71,7 @@ function App:on(methods, paths, ...)
 
     for _, m in ipairs(methods) do
         for _, p in ipairs(paths) do
-            self._router:add(m, p, handlers)
+            self._router:add(m, p, { ... })
         end
     end
 end
@@ -97,7 +89,6 @@ function App:_run(client)
     if ctx._finalized then
         ctx.res:send()
     else
-        print()
         HTTP500(ctx):send()
     end
 end

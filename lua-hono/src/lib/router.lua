@@ -17,7 +17,7 @@ function Router.new()
 end
 
 function Router:add(method, path, ...)
-    self.trie:insert(method, path, ...)
+    self.trie:insert(method, (path or "*"), ...)
 end
 
 function Router:match(method, path)

@@ -1,17 +1,8 @@
-local Server = require("lib/server")
-local app = require("lib/app").new()
+local server = require("lib/server")
 local logger = require("lib/middleware/logger")
-local static = require("lib/middleware/static")
+local serve = require("lib/middleware/static")
+local app = require("lib/app").new()
 
 app:use("*", logger())
-app:on("GET", { "/", "/:file{^.+%.%w+}" }, static(
-    function(c)
-        return {
-            root = "public",
-            path = c.req:param("file") or "index.html"
-        }
-    end)
-)
-
-
-Server.new(app):start()
+app:get("*", serve({ root = "public" }))
+server.new(app):start()

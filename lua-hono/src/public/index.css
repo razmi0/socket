@@ -1,5 +1,12 @@
+body {
+    background-color: #212121;
+}
+
 #divs-container {
-    div {
+    * {
         min-width: 300px;
+        padding: 15px;
+        background-color: #e0e0e0;
+        max-width: 350px;
     }
 }

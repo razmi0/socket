@@ -1,6 +1,11 @@
 local HTTP404 = require("lib.http-exception.not-found")
 local HTTP405 = require("lib.http-exception.method-not-allowed")
 
+local function is_response(obj)
+    local mt = getmetatable(obj)
+    return mt and mt.__name == "Response"
+end
+
 local function compose(mws, ctx, match)
     local hs = {}
     local executed_counter = 0
@@ -16,21 +21,16 @@ local function compose(mws, ctx, match)
         hs[#hs] = ctx._err_handler
     end
 
-    local function is_response(obj)
-        local mt = getmetatable(obj)
-        return mt and mt.__name == "Response"
-    end
-
     local function dispatch(i)
-        -- all mw executed
         if i > #hs then
+            -- all mw executed
             -- no response set
-            if not ctx._finalized then
-                if match then
-                    HTTP405(ctx)
-                else
-                    HTTP404(ctx)
-                end
+            if not ctx._finalized and match then
+                HTTP405(ctx)
+                ctx._finalized = true
+            else
+                HTTP404(ctx)
+                ctx._finalized = true
             end
             return
         end
@@ -55,7 +55,7 @@ local function compose(mws, ctx, match)
             hs[#hs] = ctx._err_handler
         end
 
-        if is_response(result) then
+        if ok and is_response(result) then
             ctx._finalized = true
         end
     end
@@ -66,7 +66,7 @@ local function compose(mws, ctx, match)
         print("\27[38;5;208m[WARN]\27[0m : Did you forget to call next() in a middleware ?")
     end
     if not ctx._finalized then
-        print("\27[38;5;208m[WARN]\27[0m : Did you forget to return a Response ?")
+        print("\27[38;5;208m[WARN]\27[0m : Context is not finalized ?")
     end
 end
 
